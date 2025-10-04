@@ -1,0 +1,453 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Your Teams</h1>
+        <button id="new-team-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+            + Create New Team
+        </button>
+    </div>
+
+    <div class="mb-6 bg-white p-4 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold text-gray-800 mb-2">Global Actions</h2>
+        <p class="text-sm text-gray-600 mb-4">Apply an action to all of your teams at once.</p>
+        <div class="flex items-end gap-4 flex-wrap">
+            <div>
+                <label for="global-leave-date-input" class="block text-sm font-medium text-gray-700">Mark Leave Day for All Teams</label>
+                <input type="date" id="global-leave-date-input" class="mt-1 p-2 border border-gray-300 rounded-lg">
+            </div>
+            <button id="mark-global-leave-btn" class="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">Mark Leave for All</button>
+
+            <div class="border-l pl-4 ml-2 border-gray-300">
+                <label class="block text-sm font-medium text-gray-700">Cancel a Leave Day</label>
+                <button id="open-delete-global-leave-modal-btn" class="mt-1 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Delete Leave for All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <a href="{{ url_for('add_member_page') }}" class="w-full flex items-center justify-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300">
+            <span class="text-xl mr-2">+</span> Add New Member
+        </a>
+        <a href="{{ url_for('mark_attendance') }}" class="w-full flex items-center justify-center bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition duration-300">
+            <svg class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            Mark Attendance
+        </a>
+
+        {% for team in teams %}
+        <button data-team-name="{{ team }}" class="team-details-btn bg-white p-6 rounded-lg shadow-md text-left hover:shadow-lg hover:bg-gray-50 transition">
+            <h3 class="text-lg font-semibold text-gray-800">{{ team }}</h3>
+            <p class="text-sm text-gray-500 mt-2">Click to view members</p>
+        </button>
+        {% else %}
+        <div class="bg-white p-6 rounded-lg shadow-md col-span-full text-center">
+             <p class="text-gray-500">You haven't created any teams yet. Click 'Create New Team' to start.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="new-team-modal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+     <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Create a New Team</h3>
+                <input type="text" id="new-team-name" class="w-full p-2 mt-2 border border-gray-300 rounded-lg" placeholder="Enter unique team name">
+                <p id="new-team-modal-status" class="text-sm text-red-600 mt-1"></p>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="save-team-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto">Save</button>
+                <button type="button" id="cancel-team-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="team-details-modal" class="hidden fixed z-20 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-7xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl leading-6 font-medium text-gray-900" id="details-modal-title">Team Details</h3>
+                    <button id="close-details-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+
+                <div class="mt-4 p-4 border rounded-lg bg-gray-50">
+                    <h4 class="font-semibold text-gray-700">Team Actions</h4>
+                    <div class="flex items-end gap-4 mt-2 flex-wrap">
+                        <div>
+                            <label for="leave-date-input" class="block text-sm font-medium text-gray-600">Mark Team Leave Day</label>
+                            <input type="date" id="leave-date-input" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <button id="mark-leave-btn" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600">Mark as Leave</button>
+
+                        <div class="border-l pl-4 ml-2 border-gray-300">
+                             <label class="block text-sm font-medium text-gray-600">Cancel a Team Leave</label>
+                             <button id="open-delete-team-leave-modal-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Delete Leave Day</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <input type="text" id="member-search" class="w-full p-2 mb-4 border border-gray-300 rounded-lg" placeholder="Search by name or enrollment ID...">
+                </div>
+                <div class="overflow-auto max-h-96">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enrollment ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendance % (Month/Year)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Left</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-members-table" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="delete-global-leave-modal" class="hidden fixed z-30 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Cancel Global Leave Day</h3>
+                    <button id="close-delete-global-leave-modal-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="mt-4 overflow-auto max-h-80">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="global-leaves-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="delete-team-leave-modal" class="hidden fixed z-30 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="delete-team-leave-modal-title">Cancel Team Leave Day</h3>
+                    <button id="close-delete-team-leave-modal-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="mt-4 overflow-auto max-h-80">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-leaves-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- Create New Team Modal Logic ---
+    const newTeamBtn = document.getElementById('new-team-btn');
+    const newTeamModal = document.getElementById('new-team-modal');
+    const cancelNewTeamBtn = document.getElementById('cancel-team-btn');
+    const saveTeamBtn = document.getElementById('save-team-btn');
+    const teamNameInput = document.getElementById('new-team-name');
+    const newTeamModalStatus = document.getElementById('new-team-modal-status');
+    const globalLeaveDateInput = document.getElementById('global-leave-date-input');
+    const markGlobalLeaveBtn = document.getElementById('mark-global-leave-btn');
+
+    newTeamBtn.addEventListener('click', () => { newTeamModal.classList.remove('hidden'); });
+    cancelNewTeamBtn.addEventListener('click', () => { newTeamModal.classList.add('hidden'); });
+    saveTeamBtn.addEventListener('click', async () => {
+        const teamName = teamNameInput.value.trim();
+        if (!teamName) { newTeamModalStatus.textContent = 'Team name cannot be empty.'; return; }
+        const response = await fetch('/api/create_team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_name: teamName })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            alert(result.message);
+            window.location.reload();
+        } else {
+            newTeamModalStatus.textContent = result.message;
+        }
+    });
+
+    markGlobalLeaveBtn.addEventListener('click', async () => {
+        const date = globalLeaveDateInput.value;
+        if (!date) {
+            alert('Please select a date to mark as a leave day for all teams.');
+            return;
+        }
+        if (confirm(`Are you sure you want to mark ${date} as a leave day for ALL of your teams?`)) {
+            const response = await fetch('/api/mark_leave_for_all_teams', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: date })
+            });
+            const result = await response.json();
+            alert(result.message);
+        }
+    });
+
+
+    // --- Team Details Modal Logic ---
+    const detailsModal = document.getElementById('team-details-modal');
+    const detailsModalTitle = document.getElementById('details-modal-title');
+    const closeDetailsBtn = document.getElementById('close-details-btn');
+    const membersTableBody = document.getElementById('team-members-table');
+    const memberSearchInput = document.getElementById('member-search');
+    const teamButtons = document.querySelectorAll('.team-details-btn');
+
+    let currentTeamForModal = null;
+
+    closeDetailsBtn.addEventListener('click', () => { detailsModal.classList.add('hidden'); });
+
+    teamButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const teamName = button.dataset.teamName;
+            openDetailsModal(teamName);
+        });
+    });
+
+    async function openDetailsModal(teamName) {
+        currentTeamForModal = teamName;
+        detailsModalTitle.textContent = `${teamName} - Member Details`;
+        membersTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-4">Loading...</td></tr>';
+        detailsModal.classList.remove('hidden');
+        memberSearchInput.value = '';
+
+        const response = await fetch(`/api/get_team_details/${teamName}`);
+        const data = await response.json();
+        renderMembersTable(data.members, teamName);
+    }
+
+    detailsModal.addEventListener('click', async (event) => {
+        const button = event.target;
+
+        if (button.id === 'mark-leave-btn') {
+            const leaveDateInput = document.getElementById('leave-date-input');
+            const date = leaveDateInput.value;
+            if (!date) { alert('Please select a date to mark as a leave day.'); return; }
+            if (!currentTeamForModal) { alert('Error: Could not determine the current team.'); return; }
+            const response = await fetch('/api/mark_leave_day', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team_name: currentTeamForModal, date: date })
+            });
+            const result = await response.json();
+            alert(result.message);
+        }
+
+        // --- NEW: Open Delete Team Leave Modal ---
+        if (button.id === 'open-delete-team-leave-modal-btn') {
+            openTeamLeaveDeleteModal(currentTeamForModal);
+        }
+
+
+        const enrollmentId = button.dataset.id;
+        const teamName = button.dataset.team;
+
+        if (button.classList.contains('remove-member-btn')) {
+            if (confirm(`Are you sure you want to mark member ${enrollmentId} as inactive?`)) {
+                const response = await fetch('/api/remove_member', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+
+        if (button.classList.contains('reactivate-member-btn')) {
+             if (confirm(`Are you sure you want to reactivate member ${enrollmentId}?`)) {
+                const response = await fetch('/api/reactivate_member', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+
+        if (button.classList.contains('delete-member-btn')) {
+            if (confirm(`WARNING:\nAre you sure you want to PERMANENTLY DELETE all image data for member ${enrollmentId}?\nThis action cannot be undone, but their attendance history will be kept.`)) {
+                const response = await fetch('/api/delete_member_permanently', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+    });
+
+    function renderMembersTable(members, teamName) {
+        membersTableBody.innerHTML = '';
+        if (members.length === 0) {
+            membersTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-4">This team has no members.</td></tr>';
+            return;
+        }
+        members.forEach(member => {
+            const statusClass = member.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+            let actionButtonsHTML = '';
+
+            const detailsLink = `<a href="/leader/view_member_details/${teamName}/${member.enrollment_id}" class="text-blue-600 hover:text-blue-900" target="_blank">Details</a>`;
+
+            if (member.status === 'active') {
+                actionButtonsHTML = `${detailsLink} <button class="remove-member-btn text-yellow-600 hover:text-yellow-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Set Inactive</button> <button class="delete-member-btn text-red-600 hover:text-red-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Delete</button>`;
+            } else if (member.status === 'inactive') {
+                actionButtonsHTML = `${detailsLink} <button class="reactivate-member-btn text-green-600 hover:text-green-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Reactivate</button> <button class="delete-member-btn text-red-600 hover:text-red-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Delete</button>`;
+            } else { actionButtonsHTML = detailsLink; }
+
+            const row = document.createElement('tr');
+            row.dataset.searchableContent = `${member.name.toLowerCase()} ${member.enrollment_id}`;
+            row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${member.name}</td> <td class="px-6 py-4 whitespace-nowrap">${member.enrollment_id}</td> <td class="px-6 py-4 whitespace-nowrap">${member.contact}</td> <td class="px-6 py-4 whitespace-nowrap stats-cell" id="stats-${member.enrollment_id}">Loading...</td> <td class="px-6 py-4 whitespace-nowrap">${member.enrollment_date}</td> <td class="px-6 py-4 whitespace-nowrap">${member.leaving_date || 'N/A'}</td> <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">${member.status}</span></td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${actionButtonsHTML}</td>`;
+            membersTableBody.appendChild(row);
+            fetchAndDisplayStats(teamName, member.enrollment_id);
+        });
+    }
+
+    async function fetchAndDisplayStats(teamName, enrollmentId) {
+        const statsCell = document.getElementById(`stats-${enrollmentId}`);
+        try {
+            const response = await fetch(`/api/get_member_stats/${teamName}/${enrollmentId}`);
+            const stats = await response.json();
+            if (stats.error) { statsCell.textContent = 'Error'; }
+            else { statsCell.innerHTML = `<span title="Current Month">${stats.month_percent}</span> / <span title="Current Year">${stats.year_percent}</span>`; }
+        } catch (e) { statsCell.textContent = 'N/A'; }
+    }
+
+    // --- NEW FEATURE: DELETE LEAVE MODAL LOGIC ---
+
+    // --- Global Leave Deletion ---
+    const deleteGlobalLeaveModal = document.getElementById('delete-global-leave-modal');
+    const openGlobalLeaveBtn = document.getElementById('open-delete-global-leave-modal-btn');
+    const closeDeleteGlobalLeaveBtn = document.getElementById('close-delete-global-leave-modal-btn');
+    const globalLeavesTableBody = document.getElementById('global-leaves-table-body');
+
+    openGlobalLeaveBtn.addEventListener('click', async () => {
+        const firstTeamButton = document.querySelector('.team-details-btn');
+        if (!firstTeamButton) {
+            alert('You must have at least one team to manage global leave dates.');
+            return;
+        }
+        const teamName = firstTeamButton.dataset.teamName;
+        const response = await fetch(`/api/get_team_leave_dates/${teamName}`);
+        const leaveDates = await response.json();
+
+        globalLeavesTableBody.innerHTML = '';
+        if (leaveDates.length === 0) {
+            globalLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">No global leave days have been marked.</td></tr>';
+        } else {
+            leaveDates.forEach(date => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${date}</td> <td class="px-6 py-4 whitespace-nowrap"><button data-date="${date}" class="delete-global-leave-date-btn text-red-600 hover:text-red-900">Delete</button></td>`;
+                globalLeavesTableBody.appendChild(row);
+            });
+        }
+        deleteGlobalLeaveModal.classList.remove('hidden');
+    });
+
+    closeDeleteGlobalLeaveBtn.addEventListener('click', () => { deleteGlobalLeaveModal.classList.add('hidden'); });
+
+    deleteGlobalLeaveModal.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('delete-global-leave-date-btn')) {
+            const date = event.target.dataset.date;
+            if (confirm(`Are you sure you want to delete the global leave day on ${date}? This will apply to ALL teams.`)) {
+                const response = await fetch('/api/delete_leave_for_all_teams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date: date })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') {
+                    event.target.closest('tr').remove();
+                }
+            }
+        }
+    });
+
+    // --- Team-Specific Leave Deletion ---
+    const deleteTeamLeaveModal = document.getElementById('delete-team-leave-modal');
+    const closeDeleteTeamLeaveBtn = document.getElementById('close-delete-team-leave-modal-btn');
+    const teamLeavesTableBody = document.getElementById('team-leaves-table-body');
+    const deleteTeamLeaveModalTitle = document.getElementById('delete-team-leave-modal-title');
+
+    async function openTeamLeaveDeleteModal(teamName) {
+        if (!teamName) return;
+        deleteTeamLeaveModalTitle.textContent = `Cancel Leave Day for ${teamName}`;
+        const response = await fetch(`/api/get_team_leave_dates/${teamName}`);
+        const leaveDates = await response.json();
+
+        teamLeavesTableBody.innerHTML = '';
+        if (leaveDates.length === 0) {
+            teamLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">This team has no marked leave days.</td></tr>';
+        } else {
+            leaveDates.forEach(date => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${date}</td> <td class="px-6 py-4 whitespace-nowrap"><button data-date="${date}" class="delete-team-leave-date-btn text-red-600 hover:text-red-900">Delete</button></td>`;
+                teamLeavesTableBody.appendChild(row);
+            });
+        }
+        deleteTeamLeaveModal.classList.remove('hidden');
+    }
+
+    closeDeleteTeamLeaveBtn.addEventListener('click', () => { deleteTeamLeaveModal.classList.add('hidden'); });
+
+    deleteTeamLeaveModal.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('delete-team-leave-date-btn')) {
+            const date = event.target.dataset.date;
+            if (confirm(`Are you sure you want to delete the leave day on ${date} for team ${currentTeamForModal}?`)) {
+                const response = await fetch('/api/delete_leave_day', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: currentTeamForModal, date: date })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') {
+                    event.target.closest('tr').remove();
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
