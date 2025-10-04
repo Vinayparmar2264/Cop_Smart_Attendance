@@ -1,0 +1,204 @@
+{% extends "layout.html" %}
+{% block title %}My Attendance History{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">My Attendance History & Analysis</h1>
+        <a href="{{ url_for('member_dashboard') }}" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition">
+            &#8592; Back to Dashboard
+        </a>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Select Date Range</h2>
+        <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+            <div>
+                <label for="start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                <input type="date" id="start-date" class="p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div>
+                <label for="end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                <input type="date" id="end-date" class="p-2 border border-gray-300 rounded-lg">
+            </div>
+            <button id="view-report-btn" class="self-end bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition">View Report</button>
+        </div>
+
+        <div id="attendance-analysis-member" class="mb-8">
+          <h3 class="text-xl font-semibold text-gray-800 mb-3">Attendance Overview for Selected Period</h3>
+          <div id="member-analysis-result" class="overflow-x-auto">
+            <table id="member-analysis-table" class="min-w-full divide-y divide-gray-200 hidden">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count / Total</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                </tbody>
+            </table>
+            <div id="member-analysis-empty" class="text-sm text-gray-500 p-3">Select a date range and click "View Report".</div>
+          </div>
+        </div>
+
+        <div class="pt-6 border-t">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Detailed Daily Report</h2>
+                <div class="flex items-center gap-2">
+                    <label for="date-filter-input" class="text-sm font-medium text-gray-700">Filter by Date:</label>
+                    <input type="date" id="date-filter-input" class="p-1 border border-gray-300 rounded-md text-sm">
+                </div>
+            </div>
+            <div id="report-container" class="overflow-x-auto border rounded-lg" style="max-height: 320px; overflow-y: auto;">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-100 sticky top-0">
+                        <tr>
+                            <th class="p-2 text-left">Date</th>
+                            <th class="p-2 text-left">In Time</th>
+                            <th class="p-2 text-left">Out Time</th>
+                            <th class="p-2 text-left">Working Hours</th>
+                            <th class="p-2 text-center">Late Coming</th>
+                            <th class="p-2 text-center">Early Going</th>
+                            <th class="p-2 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-tbody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const member = {{ member | tojson }};
+
+    // --- DOM References ---
+    const startDateEl = document.getElementById('start-date');
+    const endDateEl = document.getElementById('end-date');
+    const viewReportBtn = document.getElementById('view-report-btn');
+    const reportTbody = document.getElementById('report-tbody');
+    const analysisTable = document.getElementById('member-analysis-table');
+    const analysisTbody = analysisTable.querySelector('tbody');
+    const analysisEmptyDiv = document.getElementById('member-analysis-empty');
+    const dateFilterInput = document.getElementById('date-filter-input'); // New reference for the filter
+
+    // --- Main Function to Fetch Detailed History ---
+    async function fetchHistory(startDate, endDate) {
+        reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">Loading history...</td></tr>`;
+        try {
+            const apiUrl = `/api/get_member_final_attendance/${encodeURIComponent(member.team_name)}/${encodeURIComponent(member.enrollment_id)}?start=${startDate}&end=${endDate}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error('Failed to fetch data');
+
+            const data = await response.json();
+            const records = data.records;
+
+            if (!records || records.length === 0) {
+                reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No records found.</td></tr>`;
+                return;
+            }
+            reportTbody.innerHTML = '';
+            records.forEach(rec => {
+                const lateMark = rec.late_coming ? '<span class="text-red-500 font-bold">✔</span>' : '—';
+                const earlyMark = rec.early_going ? '<span class="text-orange-500 font-bold">✔</span>' : '—';
+                // Add data-date attribute to the row for filtering
+                reportTbody.innerHTML += `
+                    <tr class="border-b" data-date="${rec.date}">
+                        <td class="p-2">${rec.date || '-'}</td>
+                        <td class="p-2">${rec.time_in || '-'}</td>
+                        <td class="p-2">${rec.time_out || '-'}</td>
+                        <td class="p-2">${rec.working_hours || '0h 0m'}</td>
+                        <td class="p-2 text-center">${lateMark}</td>
+                        <td class="p-2 text-center">${earlyMark}</td>
+                        <td class="p-2 font-semibold">${rec.status || 'N/A'}</td>
+                    </tr>`;
+            });
+        } catch (error) {
+            reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Error loading history.</td></tr>`;
+        }
+    }
+
+    // --- Main Function to Fetch Analysis Overview ---
+    async function fetchAnalysis(startDate, endDate) {
+        analysisEmptyDiv.textContent = 'Analyzing...';
+        analysisTable.classList.add('hidden');
+        try {
+            const apiUrl = `/api/attendance_analysis_self?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error('Failed to fetch analysis');
+
+            const data = await response.json();
+            if (data.status !== 'success') throw new Error(data.message || 'Analysis failed');
+
+            const totals = data.totals || {};
+            const rows = [
+                ['Days Analyzed', data.days_analyzed ?? 0],
+                ['Total Present', totals.total_present ?? 0],
+                ['Total Absent', totals.total_absent ?? 0],
+                ['Total Half Day', totals.total_half_day ?? 0],
+                ['Total Working Hours', totals.total_working_hours ?? '0h 0m'],
+                ['Late Coming', totals.total_late_coming ?? 0],
+                ['Early Going', totals.total_early_going ?? 0],
+                ['Team Leaves (Holidays)', totals.total_team_leaves ?? 0],
+                ['Personal Leave Requests', totals.total_requests ?? 0],
+                [' - Approved', totals.total_approved_requests ?? 0],
+                [' - Rejected', totals.total_rejected_requests ?? 0],
+            ];
+            analysisTbody.innerHTML = '';
+            rows.forEach(r => {
+                analysisTbody.innerHTML += `<tr><td class="px-6 py-4 text-sm text-gray-700">${r[0]}</td><td class="px-6 py-4 text-sm font-medium text-gray-900">${r[1]}</td></tr>`;
+            });
+            analysisTable.classList.remove('hidden');
+            analysisEmptyDiv.style.display = 'none';
+        } catch (e) {
+            analysisEmptyDiv.textContent = `Analysis failed: ${e.message}`;
+            analysisEmptyDiv.style.display = 'block';
+        }
+    }
+
+    // --- Event Listeners & Initial Load ---
+    function runReports() {
+        const start = startDateEl.value;
+        const end = endDateEl.value;
+        if (start && end) {
+            if (start > end) {
+                alert('Start date must be before or equal to end date.');
+                return;
+            }
+            dateFilterInput.value = ''; // Clear the single-date filter
+            fetchHistory(start, end);
+            fetchAnalysis(start, end);
+        } else {
+            alert('Please select both a start and end date.');
+        }
+    }
+
+    viewReportBtn.addEventListener('click', runReports);
+
+    // NEW: Event listener for the date filter input
+    dateFilterInput.addEventListener('input', () => {
+        const searchTerm = dateFilterInput.value;
+        const rows = reportTbody.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            // Check if the row is a data row and has the dataset attribute
+            if (row.dataset.date) {
+                // If no search term, or if the row's date matches, show it. Otherwise, hide it.
+                row.style.display = !searchTerm || row.dataset.date === searchTerm ? '' : 'none';
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        endDateEl.value = today.toISOString().slice(0, 10);
+        startDateEl.value = thirtyDaysAgo.toISOString().slice(0, 10);
+        runReports();
+    });
+</script>
+{% endblock %}

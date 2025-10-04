@@ -1,0 +1,490 @@
+{% extends "layout.html" %}
+{% block title %}{{ member.name }}'s Details{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">{{ member.name }}'s Details</h1>
+                <p class="text-gray-600">Enrollment ID: {{ member.enrollment_id }}</p>
+                <p class="text-sm text-gray-500 mt-1">Team: <span class="font-semibold">{{ member.team_name }}</span></p>
+                <a href="{{ url_for('dashboard') }}" class="text-sm mt-2 inline-block font-medium text-blue-600 hover:text-blue-500">&larr; Back to Dashboard</a>
+            </div>
+            <div class="mt-4 md:mt-0 md:text-right">
+                <p class="text-sm text-gray-500">Joined: <span class="font-semibold">{{ member.enrollment_date }}</span></p>
+                {% if member.leaving_date %}
+                <p class="text-sm text-red-500">Left: <span class="font-semibold">{{ member.leaving_date }}</span></p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mt-4 pt-4 border-t">
+            <h3 class="text-lg font-semibold text-gray-700">Attendance Stats</h3>
+            <div class="flex gap-8 mt-2">
+                <div>
+                    <span class="text-sm text-gray-500">This Month</span>
+                    <p class="text-2xl font-bold text-blue-600" id="month-percent-stat">Loading...</p>
+                </div>
+                 <div>
+                    <span class="text-sm text-gray-500">This Year</span>
+                    <p class="text-2xl font-bold text-indigo-600" id="year-percent-stat">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Member Details</h2>
+                <div class="flex gap-4">
+                    <button id="edit-details-btn" class="text-sm font-medium text-blue-600 hover:text-blue-500">Edit</button>
+                    <button id="manage-fields-btn" class="text-sm font-medium text-gray-600 hover:text-gray-900">Manage Fields</button>
+                </div>
+            </div>
+            <div id="details-display" class="space-y-4 pr-2" style="max-height: 300px; overflow-y: auto;">
+                <p>Loading member details...</p>
+            </div>
+
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold">Leave Requests (This Member)</h3>
+                <div id="member-requests-list" class="mt-2 space-y-2 text-sm text-gray-600 pr-2" style="max-height: 220px; overflow-y: auto;">
+                    <p>Loading requests...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Attendance Analysis & History</h2>
+
+            <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div>
+                    <label for="start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                    <input type="date" id="start-date" class="p-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label for="end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                    <input type="date" id="end-date" class="p-2 border border-gray-300 rounded-lg">
+                </div>
+                <button id="view-report-btn" class="self-end bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition">View Report</button>
+            </div>
+
+            <div id="attendance-analysis-leader" class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">Overview for Selected Period</h3>
+                <div id="leader-analysis-result" class="overflow-x-auto pr-2" style="max-height: 280px; overflow-y: auto;">
+                    <table id="leader-analysis-table" class="min-w-full divide-y divide-gray-200 hidden">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count / Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                    <div id="leader-analysis-empty" class="text-sm text-gray-500 p-3">Select a date range and click "View Report".</div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Detailed Daily Report</h2>
+                    <div class="flex items-center gap-2">
+                        <label for="date-filter-input" class="text-sm font-medium text-gray-700">Filter by Date:</label>
+                        <input type="date" id="date-filter-input" class="p-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                </div>
+                <div id="report-container" class="overflow-x-auto border rounded-lg" style="max-height: 320px; overflow-y: auto;">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="p-2 text-left">Date</th><th class="p-2 text-left">In Time</th><th class="p-2 text-left">Out Time</th>
+                                <th class="p-2 text-left">Work Hours</th><th class="p-2 text-center">Late</th><th class="p-2 text-center">Early</th>
+                                <th class="p-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-details-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-2xl leading-6 font-bold text-gray-900">Edit Member Details</h3>
+                <button id="close-edit-modal-btn" class="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <form id="edit-details-form" class="text-left space-y-4 p-4 max-h-[60vh] overflow-y-auto pr-2"></form>
+            <div class="items-center px-4 py-3 bg-gray-50 text-right rounded-b-md border-t">
+                <button id="save-edited-details-btn" class="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-green-600">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="manage-fields-modal" class="hidden fixed z-[60] inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
+        <div class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-2xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h3 class="text-xl leading-6 font-bold text-gray-900">Manage Member Details Fields</h3>
+                    <button id="close-fields-modal-btn" class="text-2xl font-bold text-gray-400 hover:text-gray-600">&times;</button>
+                </div>
+                <div class="p-2 space-y-4 max-h-[60vh] overflow-y-auto">
+                    <p class="text-sm text-gray-600">Add or remove custom data fields for the <strong id="fields-team-name">{{ member.team_name }}</strong> team.</p>
+                    <div id="fields-list" class="space-y-3"></div>
+                    <button id="add-field-btn" class="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-700">+ Add a new field</button>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
+                    <button id="save-fields-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto">Save</button>
+                    <button id="cancel-fields-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="respond-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-black opacity-40"></div>
+        <div class="relative bg-white rounded-lg shadow-xl sm:max-w-lg sm:w-full p-4 z-60">
+            <h3 class="text-lg font-semibold" id="respond-modal-title">Respond to Request</h3>
+            <div class="mt-2">
+                <p id="respond-request-info" class="text-sm text-gray-600"></p>
+                <label class="block text-sm font-medium mt-3">Reply Note (optional)</label>
+                <textarea id="respond-reply-note" class="w-full p-2 border rounded" rows="3"></textarea>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+                <button id="respond-reject-btn" class="px-3 py-2 bg-red-600 text-white rounded">Reject</button>
+                <button id="respond-accept-btn" class="px-3 py-2 bg-green-600 text-white rounded">Accept</button>
+                <button id="respond-cancel-btn" class="px-3 py-2 bg-gray-100 rounded">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* leader_member_view.html - Complete script with all functionality restored */
+const member = {{ member | tojson }};
+
+// --- DOM References ---
+const detailsDisplay = document.getElementById('details-display');
+const monthPercentEl = document.getElementById('month-percent-stat');
+const yearPercentEl = document.getElementById('year-percent-stat');
+const memberRequestsList = document.getElementById('member-requests-list');
+const startDateEl = document.getElementById('start-date');
+const endDateEl = document.getElementById('end-date');
+const viewReportBtn = document.getElementById('view-report-btn');
+const reportTbody = document.getElementById('report-tbody');
+const dateFilterInput = document.getElementById('date-filter-input');
+const analysisTable = document.getElementById('leader-analysis-table');
+const analysisTbody = analysisTable.querySelector('tbody');
+const analysisEmptyDiv = document.getElementById('leader-analysis-empty');
+const editDetailsBtn = document.getElementById('edit-details-btn');
+const manageFieldsBtn = document.getElementById('manage-fields-btn');
+
+// --- Modal References ---
+const editDetailsModal = document.getElementById('edit-details-modal');
+const editDetailsForm = document.getElementById('edit-details-form');
+const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
+const saveEditedDetailsBtn = document.getElementById('save-edited-details-btn');
+const manageFieldsModal = document.getElementById('manage-fields-modal');
+const closeFieldsModalBtn = document.getElementById('close-fields-modal-btn');
+const cancelFieldsBtn = document.getElementById('cancel-fields-btn');
+const addFieldBtn = document.getElementById('add-field-btn');
+const saveFieldsBtn = document.getElementById('save-fields-btn');
+const fieldsList = document.getElementById('fields-list');
+const respondModal = document.getElementById('respond-modal');
+
+/* --- NEW Attendance Report and Analysis Logic --- */
+async function fetchHistory(startDate, endDate) {
+    reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">Loading...</td></tr>`;
+    try {
+        const apiUrl = `/api/get_member_final_attendance/${encodeURIComponent(member.team_name)}/${encodeURIComponent(member.enrollment_id)}?start=${startDate}&end=${endDate}`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const data = await response.json();
+        const records = data.records;
+        reportTbody.innerHTML = '';
+        if (!records || records.length === 0) {
+            reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No records found.</td></tr>`;
+            return;
+        }
+        records.forEach(rec => {
+            const lateMark = rec.late_coming ? '<span class="text-red-500 font-bold">✔</span>' : '—';
+            const earlyMark = rec.early_going ? '<span class="text-orange-500 font-bold">✔</span>' : '—';
+            reportTbody.innerHTML += `<tr class="border-b" data-date="${rec.date}"><td class="p-2">${rec.date || '-'}</td><td class="p-2">${rec.time_in || '-'}</td><td class="p-2">${rec.time_out || '-'}</td><td class="p-2">${rec.working_hours || '0h 0m'}</td><td class="p-2 text-center">${lateMark}</td><td class="p-2 text-center">${earlyMark}</td><td class="p-2 font-semibold">${rec.status || 'N/A'}</td></tr>`;
+        });
+    } catch (error) {
+        reportTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Error loading history.</td></tr>`;
+    }
+}
+
+async function fetchAnalysis(startDate, endDate) {
+    analysisEmptyDiv.textContent = 'Analyzing...';
+    analysisTable.classList.add('hidden');
+    try {
+        const apiUrl = `/api/attendance_analysis/${encodeURIComponent(member.team_name)}/${encodeURIComponent(member.enrollment_id)}?start=${startDate}&end=${endDate}`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error('Failed to fetch analysis');
+        const data = await response.json();
+        if (data.status !== 'success') throw new Error(data.message || 'Analysis failed');
+        const totals = data.totals || {};
+        const rows = [
+            ['Days Analyzed', data.days_analyzed ?? 0],
+            ['Total Present', totals.total_present ?? 0], ['Total Absent', totals.total_absent ?? 0],
+            ['Total Half Day', totals.total_half_day ?? 0], ['Total Working Hours', totals.total_working_hours ?? '0h 0m'],
+            ['Late Coming', totals.total_late_coming ?? 0], ['Early Going', totals.total_early_going ?? 0],
+            ['Team Leaves (Holidays)', totals.total_team_leaves ?? 0], ['Personal Leave Requests', totals.total_requests ?? 0],
+            [' - Approved', totals.total_approved_requests ?? 0], [' - Rejected', totals.total_rejected_requests ?? 0],
+        ];
+        analysisTbody.innerHTML = '';
+        rows.forEach(r => {
+            analysisTbody.innerHTML += `<tr><td class="px-6 py-4 text-sm text-gray-700">${r[0]}</td><td class="px-6 py-4 text-sm font-medium text-gray-900">${r[1]}</td></tr>`;
+        });
+        analysisTable.classList.remove('hidden');
+        analysisEmptyDiv.style.display = 'none';
+    } catch (e) {
+        analysisEmptyDiv.textContent = `Analysis failed: ${e.message}`;
+        analysisEmptyDiv.style.display = 'block';
+    }
+}
+
+function runReports() {
+    const start = startDateEl.value;
+    const end = endDateEl.value;
+    if (start && end) {
+        if (start > end) { alert('Start date must be before or equal to end date.'); return; }
+        dateFilterInput.value = '';
+        fetchHistory(start, end);
+        fetchAnalysis(start, end);
+    } else {
+        alert('Please select both a start and end date.');
+    }
+}
+
+/* --- RESTORED: All original functions for this page --- */
+
+async function renderDetails(data) {
+    detailsDisplay.innerHTML = '<p>Loading details...</p>';
+    try {
+        const res = await fetch(`/api/get_team_fields/${encodeURIComponent(data.team_name)}`);
+        const fields = await res.json();
+        const fieldMap = new Map(fields.map(f => [f.key, f.label]));
+        detailsDisplay.innerHTML = `<div><p class="text-sm font-medium text-gray-500">Contact Number</p><p class="text-gray-800 break-words">${data.contact || '<span class="text-gray-400">Not set</span>'}</p></div>`;
+        if (data.additional_data) {
+            for (const key in data.additional_data) {
+                if (Object.prototype.hasOwnProperty.call(data.additional_data, key)) {
+                    const label = fieldMap.get(key);
+                    if (label) {
+                        const value = data.additional_data[key];
+                        detailsDisplay.innerHTML += `<div><p class="text-sm font-medium text-gray-500">${label}</p><p class="text-gray-800 break-words">${value || '<span class="text-gray-400">Not set</span>'}</p></div>`;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        detailsDisplay.innerHTML = '<p class="text-red-500">Error loading member details.</p>';
+    }
+}
+
+async function loadMemberStats() {
+    try {
+        const response = await fetch(`/api/get_member_stats/${encodeURIComponent(member.team_name)}/${encodeURIComponent(member.enrollment_id)}`);
+        const stats = await response.json();
+        monthPercentEl.textContent = stats.error ? 'N/A' : stats.month_percent;
+        yearPercentEl.textContent = stats.error ? 'N/A' : stats.year_percent;
+    } catch (err) {
+        monthPercentEl.textContent = 'N/A';
+        yearPercentEl.textContent = 'N/A';
+    }
+}
+
+async function loadMemberRequests() {
+    memberRequestsList.innerHTML = '<p class="text-sm text-gray-500">Loading...</p>';
+    try {
+        const res = await fetch(`/api/get_leave_requests?enrollment_id=${encodeURIComponent(member.enrollment_id)}`);
+        const arr = await res.json();
+        memberRequestsList.innerHTML = '';
+        if (!arr || arr.length === 0) {
+            memberRequestsList.innerHTML = '<p class="text-sm text-gray-500">No requests.</p>';
+            return;
+        }
+        arr.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'p-2 border rounded flex justify-between items-center gap-3';
+            let buttons = '';
+            if (r.status === 'pending') {
+                buttons = `<div class="flex flex-col gap-2"><button data-request='${JSON.stringify(r)}' class="px-2 py-1 bg-green-600 text-white rounded text-sm respond-accept-btn">Accept</button><button data-request='${JSON.stringify(r)}' class="px-2 py-1 bg-red-600 text-white rounded text-sm respond-reject-btn">Reject</button></div>`;
+            } else {
+                buttons = `<div class="text-sm text-gray-600"><div>Reply: ${r.reply_note || '<em>—</em>'}</div></div>`;
+            }
+            div.innerHTML = `<div><div><strong>${r.date}</strong> — <span class="text-sm text-gray-600">${r.status}</span></div><div class="text-sm text-gray-700 mt-1">${r.note || ''}</div></div>${buttons}`;
+            memberRequestsList.appendChild(div);
+        });
+    } catch (err) {
+        memberRequestsList.innerHTML = '<p class="text-sm text-red-500">Failed to load.</p>';
+    }
+}
+
+async function openEditModal() {
+    try {
+        const res = await fetch(`/api/get_team_fields/${encodeURIComponent(member.team_name)}`);
+        if (!res.ok) throw new Error('Failed to fetch form fields');
+        const fields = await res.json();
+        editDetailsForm.innerHTML = '';
+        fields.forEach(field => {
+            if (field.editable) {
+                const currentVal = (member.additional_data && member.additional_data[field.key]) ? member.additional_data[field.key] : '';
+                editDetailsForm.innerHTML += `<div class="mb-3"><label class="block text-sm font-medium text-gray-700">${field.label}</label><input type="text" name="${field.key}" value="${currentVal}" class="w-full p-2 mt-1 border border-gray-300 rounded-lg"></div>`;
+            }
+        });
+        editDetailsModal.classList.remove('hidden');
+    } catch (err) {
+        alert('Could not load details for editing.');
+    }
+}
+
+async function saveEditedDetails() {
+    const formData = new FormData(editDetailsForm);
+    const payload = {
+        team_name: member.team_name,
+        enrollment_id: member.enrollment_id,
+        additional_data: Object.fromEntries(formData.entries())
+    };
+    try {
+        const res = await fetch('/api/update_member_details', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        const result = await res.json();
+        if (result.status === 'success') {
+            member.additional_data = { ...member.additional_data, ...payload.additional_data };
+            renderDetails(member);
+            editDetailsModal.classList.add('hidden');
+            alert('Details updated.');
+        } else {
+            alert(`Error: ${result.message || 'Could not save.'}`);
+        }
+    } catch (err) {
+        alert('Network error while saving.');
+    }
+}
+
+async function openFieldsModal() {
+    fieldsList.innerHTML = '<p>Loading fields...</p>';
+    try {
+        const response = await fetch(`/api/get_team_fields/${encodeURIComponent(member.team_name)}`);
+        const fields = await response.json();
+        fieldsList.innerHTML = '';
+        document.getElementById('fields-team-name').textContent = member.team_name;
+        fields.forEach(field => {
+            const isPermanent = field.permanent || false;
+            let fieldHtml = '';
+            if (isPermanent) {
+                fieldHtml = `<div class="flex items-center gap-2 p-2 rounded-lg bg-gray-100" data-key="${field.key}" data-permanent="true"><input type="text" value="${field.label}" class="flex-grow p-2 border bg-gray-200 text-gray-500 rounded-lg" readonly><button class="p-2 text-gray-400" disabled>Remove</button></div>`;
+            } else {
+                fieldHtml = `<div class="flex items-center gap-2 p-2 rounded-lg bg-white border" data-key="${field.key}" data-permanent="false"><input type="text" value="${(field.label||'').replace(/"/g,'&quot;')}" class="flex-grow p-2 border-gray-300 rounded-lg field-label-input"><button class="p-2 text-red-500 hover:text-red-700 remove-field-btn">Remove</button></div>`;
+            }
+            fieldsList.innerHTML += fieldHtml;
+        });
+        manageFieldsModal.classList.remove('hidden');
+    } catch (err) {
+        manageFieldsModal.classList.remove('hidden');
+        fieldsList.innerHTML = '<p class="text-red-500">Failed to load fields.</p>';
+    }
+}
+
+function addFieldRow() {
+    const newKey = 'custom_' + Date.now();
+    fieldsList.innerHTML += `<div class="flex items-center gap-2 p-2 rounded-lg bg-blue-50 border border-blue-200" data-key="${newKey}" data-permanent="false"><input type="text" placeholder="Enter new field label" class="flex-grow p-2 border-gray-300 rounded-lg field-label-input"><button class="p-2 text-red-500 hover:text-red-700 remove-field-btn">Remove</button></div>`;
+}
+
+async function saveTeamFields() {
+    const fieldsPayload = Array.from(fieldsList.querySelectorAll('#fields-list > div')).filter(row => row.dataset.permanent !== 'true').map(row => {
+        const label = row.querySelector('.field-label-input').value.trim();
+        return label ? { key: row.dataset.key, label: label, editable: true, permanent: false } : null;
+    }).filter(Boolean);
+
+    try {
+        const response = await fetch(`/api/save_team_fields/${encodeURIComponent(member.team_name)}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ fields: fieldsPayload }) });
+        const result = await response.json();
+        alert(result.message || 'Updated');
+        if (result.status === 'success') {
+            window.location.reload();
+        }
+    } catch (err) {
+        alert('Failed to save fields.');
+    }
+}
+
+async function openRespondModal(requestObj) {
+    document.getElementById('respond-modal-title').textContent = `Respond to ${requestObj.member_name}'s request (${requestObj.date})`;
+    document.getElementById('respond-request-info').textContent = requestObj.note || '(no note provided)';
+    respondModal.dataset.request = JSON.stringify(requestObj);
+    respondModal.classList.remove('hidden');
+}
+
+async function respondToRequest(action) {
+    const requestObj = JSON.parse(respondModal.dataset.request || '{}');
+    if (!requestObj.id) return;
+    const payload = { id: requestObj.id, action: action, reply_note: document.getElementById('respond-reply-note').value.trim() };
+    try {
+        const res = await fetch('/api/respond_leave_request', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const j = await res.json();
+        alert(j.message || 'Update failed');
+        if (j.status === 'success') {
+            respondModal.classList.add('hidden');
+            loadMemberRequests();
+            runReports();
+        }
+    } catch (err) { alert('Network error'); }
+}
+
+/* --- Event Listeners & Page Load --- */
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    endDateEl.value = today.toISOString().slice(0, 10);
+    startDateEl.value = thirtyDaysAgo.toISOString().slice(0, 10);
+
+    runReports();
+    renderDetails(member);
+    loadMemberStats();
+    loadMemberRequests();
+
+    viewReportBtn.addEventListener('click', runReports);
+    dateFilterInput.addEventListener('input', () => {
+        const searchTerm = dateFilterInput.value;
+        reportTbody.querySelectorAll('tr[data-date]').forEach(row => {
+            row.style.display = !searchTerm || row.dataset.date === searchTerm ? '' : 'none';
+        });
+    });
+
+    editDetailsBtn.addEventListener('click', openEditModal);
+    closeEditModalBtn.addEventListener('click', () => editDetailsModal.classList.add('hidden'));
+    saveEditedDetailsBtn.addEventListener('click', saveEditedDetails);
+
+    manageFieldsBtn.addEventListener('click', openFieldsModal);
+    closeFieldsModalBtn.addEventListener('click', () => manageFieldsModal.classList.add('hidden'));
+    cancelFieldsBtn.addEventListener('click', () => manageFieldsModal.classList.add('hidden'));
+    addFieldBtn.addEventListener('click', addFieldRow);
+    saveFieldsBtn.addEventListener('click', saveTeamFields);
+    fieldsList.addEventListener('click', e => {
+        if (e.target.classList.contains('remove-field-btn')) e.target.parentElement.remove();
+    });
+
+    respondModal.querySelector('#respond-cancel-btn').addEventListener('click', () => respondModal.classList.add('hidden'));
+    respondModal.querySelector('#respond-accept-btn').addEventListener('click', () => respondToRequest('accept'));
+    respondModal.querySelector('#respond-reject-btn').addEventListener('click', () => respondToRequest('reject'));
+
+    memberRequestsList.addEventListener('click', e => {
+        const requestBtn = e.target.closest('[data-request]');
+        if (requestBtn) openRespondModal(JSON.parse(requestBtn.dataset.request));
+    });
+});
+</script>
+{% endblock %}

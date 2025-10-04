@@ -1,0 +1,338 @@
+{% extends "layout.html" %}
+{% block title %}Member Marked Attendance{% endblock %}
+
+{% block content %}
+<div class="px-4">
+  <h1 class="text-3xl font-bold text-gray-900 mb-6">Member Mark Attendance (Location + Camera)</h1>
+ <a href="{{ url_for('member_dashboard') }}" class="bg-red-400 text-white font-bold py-2 px-2 rounded-lg hover:bg-gray-700 transition">
+        &#8592; Back to Dashboard
+    </a>
+  <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold">{{ member.name }}</h2>
+        <p class="text-sm text-gray-600">Enrollment ID: {{ member.enrollment_id }}</p>
+        <p class="text-sm text-gray-600">Team: <strong>{{ member.team_name }}</strong></p>
+      </div>
+      <div>
+        <button id="open-member-map-btn" class="px-3 py-2 bg-gray-100 rounded">Open Map</button>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div class="flex gap-3 items-center">
+        <button id="auto-loc-btn" class="px-3 py-2 bg-blue-600 text-white rounded">Auto Location: OFF</button>
+        <button id="match-loc-btn" class="px-3 py-2 bg-yellow-500 text-white rounded" disabled>Match Location</button>
+        <span id="loc-status" class="text-sm text-gray-500 ml-3">Location not checked</span>
+      </div>
+
+      <div id="member-map-wrapper" class="mt-4 hidden">
+        <div id="member-map" style="height:320px; border:1px solid #ddd;"></div>
+        <div class="mt-2 text-sm text-gray-700">Team anchor: <span id="member-anchor-display">not loaded</span> — Your pos: <span id="member-pos-display">unknown</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+    <div class="flex gap-3 mb-3">
+      <button id="member-start-btn" class="px-4 py-2 bg-green-600 text-white rounded" disabled>Start Attendance (Camera)</button>
+      <button id="member-stop-btn" class="px-4 py-2 bg-red-600 text-white rounded" disabled>Stop Attendance (Camera)</button>
+    </div>
+
+    <img id="member-video" src="https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off" class="w-full rounded-lg border border-gray-300">
+
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h3 class="font-semibold">Today's Attendance Scans (you)</h3>
+        <div class="overflow-auto max-h-40 border rounded-lg mt-2">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100"><tr><th class="p-2 text-left">Time</th><th class="p-2 text-left">Method</th></tr></thead>
+            <tbody id="member-today-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="font-semibold">Your Final Attendance (recent)</h3>
+        <div id="member-final-table" class="overflow-auto max-h-40 border rounded-lg mt-2 text-sm p-2">
+          <p class="text-sm text-gray-500">No data yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!--<img id="video-feed" src="https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off" alt="Camera Feed">-->
+
+<script>
+const member = {{ member | tojson }};
+const autoLocBtn = document.getElementById('auto-loc-btn');
+const matchLocBtn = document.getElementById('match-loc-btn');
+const locStatus = document.getElementById('loc-status');
+const memberMapWrapper = document.getElementById('member-map-wrapper');
+const memberMapEl = document.getElementById('member-map');
+const memberAnchorDisplay = document.getElementById('member-anchor-display');
+const memberPosDisplay = document.getElementById('member-pos-display');
+
+const memberStartBtn = document.getElementById('member-start-btn');
+const memberStopBtn = document.getElementById('member-stop-btn');
+const memberVideo = document.getElementById('member-video');
+const memberTodayTable = document.getElementById('member-today-table');
+const memberFinalTableDiv = document.getElementById('member-final-table');
+
+let autoLocEnabled = false;
+let currentPos = null;
+let memberMap = null;
+let anchorMarker = null;
+let userMarker = null;
+let anchorCfg = null;
+
+// Toggle auto location
+// Find this block
+autoLocBtn.addEventListener('click', async () => {
+  autoLocEnabled = !autoLocEnabled;
+  autoLocBtn.textContent = `Auto Location: ${autoLocEnabled ? 'ON' : 'OFF'}`;
+  if (!autoLocEnabled) {
+    matchLocBtn.disabled = true;
+    locStatus.textContent = 'Auto location off';
+    memberStartBtn.disabled = true;
+  } else {
+    // fetch current position immediately
+    if (!navigator.geolocation) { alert('Geolocation not supported'); autoLocEnabled=false; autoLocBtn.textContent='Auto Location: OFF'; return; }
+    navigator.geolocation.getCurrentPosition(pos => {
+      currentPos = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+      memberPosDisplay.textContent = `${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}`;
+      matchLocBtn.disabled = false;
+      locStatus.textContent = 'Ready to match';
+      if (!memberMap) openMemberMap();
+      if (userMarker) userMarker.setLatLng([currentPos.lat, currentPos.lng]); else userMarker = L.marker([currentPos.lat, currentPos.lng]).addTo(memberMap);
+      memberMap.setView([currentPos.lat, currentPos.lng], 15);
+    }, err => { alert('Could not get location: ' + err.message); autoLocEnabled=false; autoLocBtn.textContent='Auto Location: OFF'; });
+  }
+});
+
+function openMemberMap() {
+  memberMapWrapper.classList.remove('hidden');
+  if (!memberMap) {
+    memberMap = L.map('member-map').setView([20.5937,78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(memberMap);
+  }
+}
+
+// Match location: send coords to server to compare
+matchLocBtn.addEventListener('click', async () => {
+  if (!currentPos) { alert('No location available. Ensure Auto Location is ON.'); return; }
+  if (!member.team_name) { alert('Team not known for this member'); return; }
+  try {
+    const r = await fetch('/api/member/match_location', {method:'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({team_name: member.team_name, lat: currentPos.lat, lng: currentPos.lng})});
+    const j = await r.json();
+    if (j.status === 'no_anchor') {
+      locStatus.textContent = 'No anchor set for this team (leader must set).';
+      memberStartBtn.disabled = true;
+      return;
+    }
+    if (j.matched === true) {
+      locStatus.textContent = `Location matched (distance ${j.distance_m.toFixed(1)} m <= tolerance ${j.tolerance_m} m). You may start camera attendance.`;
+      memberStartBtn.disabled = false;
+    } else {
+      locStatus.textContent = `Location mismatch (${j.distance_m.toFixed(1)} m > tolerance ${j.tolerance_m} m). You may still start camera, but attendance will be marked as Absent if mismatch.`;
+      memberStartBtn.disabled = false;
+    }
+    // show anchor on map if available
+    if (typeof j.config !== 'undefined' && j.config.lat && j.config.lng) {
+      anchorCfg = j.config;
+      if (!memberMap) openMemberMap();
+      if (!anchorMarker) anchorMarker = L.marker([anchorCfg.lat, anchorCfg.lng], {icon: L.icon({iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png'})}).addTo(memberMap);
+      else anchorMarker.setLatLng([anchorCfg.lat, anchorCfg.lng]);
+      memberAnchorDisplay.textContent = `${anchorCfg.lat.toFixed(6)}, ${anchorCfg.lng.toFixed(6)} (tol ${anchorCfg.tolerance_meters||10}m)`;
+      if (currentPos) {
+        if (!userMarker) userMarker = L.marker([currentPos.lat, currentPos.lng], {icon: L.icon({iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png'})}).addTo(memberMap);
+        else userMarker.setLatLng([currentPos.lat, currentPos.lng]);
+        memberMap.fitBounds(L.latLngBounds([[anchorCfg.lat, anchorCfg.lng],[currentPos.lat,currentPos.lng]]), {padding:[40,40]});
+      }
+    }
+  } catch (e) {
+    alert('Match failed: ' + e.message);
+  }
+});
+
+
+
+
+
+// prefer explicit team (if available on the page)
+  const videoEl = document.getElementById('video-feed');
+  // Get team from server-rendered var or element:
+  const memberTeam = window.memberTeam || document.getElementById('member-team')?.value || '';
+
+  function startFeed() {
+    if (memberTeam) {
+      videoEl.src = `/member/video_feed?team=${encodeURIComponent(memberTeam)}`;
+    } else {
+      // fallback - try direct alias; may 404 if server cannot infer
+      videoEl.src = '/member/video_feed';
+    }
+  }
+  function stopFeed() {
+    videoEl.src = 'https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off';
+  }
+
+  // Hooks to your start/stop buttons:
+  document.getElementById('start-btn')?.addEventListener('click', startFeed);
+  document.getElementById('stop-btn')?.addEventListener('click', stopFeed);
+
+
+
+
+// Camera start/stop using member stream endpoint; require match check first (UI ensures)
+memberStartBtn.addEventListener('click', () => {
+  memberVideo.src = '/member/video_feed';
+  memberStartBtn.disabled = true;
+  memberStopBtn.disabled = false;
+});
+
+
+
+// Replace the old memberStopBtn listener with this one
+memberStopBtn.addEventListener('click', () => {
+  memberVideo.src = 'https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off';
+  memberStartBtn.disabled = false;
+  memberStopBtn.disabled = true;
+
+  // This fetch call now handles the cooldown message gracefully.
+  fetch('/api/member/mark_by_camera', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_name: member.team_name})
+  })
+  .then(r => {
+    if (!r.ok) { // Handle server errors like 500
+      throw new Error(`Server error: ${r.status}`);
+    }
+    return r.json();
+  })
+  .then(j => {
+    // For 'success' or 'cooldown', the main goal is to show the user their latest attendance.
+    // So, we just refresh the tables.
+    if (j.status === 'success' || j.status === 'cooldown' || j.result === 'ALREADY_RECENT') {
+      console.log("Attendance session stopped. Refreshing tables to show result.");
+      loadMemberTodayScans();
+      loadMemberFinalAttendance();
+    } else {
+      // This handles a real failure, like if today is a leave day.
+      alert('Could not stop session cleanly: ' + (j.message || 'Unknown error'));
+    }
+  })
+  .catch(e => alert('Network error on stop: ' + e.message));
+});
+// load member's today scans (filter today's team scans for enrollment id)
+// This is the new, correct function
+
+
+
+async function loadMemberFinalAttendance() {
+  const memberFinalTableDiv = document.getElementById('member-final-table');
+  if (!member.team_name || !member.enrollment_id) {
+    memberFinalTableDiv.innerHTML = '<p class="text-sm text-gray-500">No member info</p>';
+    return;
+  }
+
+  // FIX: Correctly formats your local date to YYYY-MM-DD
+  const dateObj = new Date();
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const today = `${year}-${month}-${day}`;
+
+  try {
+    const r = await fetch(`/api/get_member_final_attendance/${encodeURIComponent(member.team_name)}/${encodeURIComponent(member.enrollment_id)}?start=${today}&end=${today}`);
+    if (!r.ok) {
+      memberFinalTableDiv.innerHTML = '<p class="text-sm text-red-500">Failed to load</p>';
+      return;
+    }
+    const data = await r.json();
+    const arr = data.records; // Data is inside the 'records' key
+
+    if (!arr || arr.length === 0) {
+      memberFinalTableDiv.innerHTML = '<p class="text-sm text-gray-500">No attendance record for today.</p>';
+      return;
+    }
+
+    let html = `<table class="min-w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-2">Date</th><th class="p-2">In</th><th class="p-2">Out</th><th class="p-2">Hrs</th><th class="p-2">Status</th></tr></thead><tbody>`;
+    arr.forEach(rw => {
+      html += `<tr class="border-b"><td class="p-2">${rw.date||''}</td><td class="p-2">${rw.time_in||'-'}</td><td class="p-2">${rw.time_out||'-'}</td><td class="p-2">${rw.working_hours||'0h 0m'}</td><td class="p-2">${rw.status||''}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    memberFinalTableDiv.innerHTML = html;
+  } catch (e) {
+    memberFinalTableDiv.innerHTML = `<div class="text-sm text-red-500">Failed to load: ${e.message}</div>`;
+  }
+}
+
+
+
+
+async function matchLocationForTeam(teamName, lat, lng) {
+  try {
+    const resp = await fetch('/api/member/match_location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', // ensures cookie auth is sent
+      body: JSON.stringify({ team_name: teamName, lat: lat, lng: lng })
+    });
+    if (resp.status === 401) {
+      alert('Not authenticated. Please login.');
+      window.location = '/auth/login'; // or your login route
+      return null;
+    }
+    const j = await resp.json();
+    if (j.status !== 'success') {
+      console.error('Match location error', j);
+      return j;
+    }
+    return j; // contains .matched, .distance_m, .tolerance_m, .message
+  } catch (err) {
+    console.error('Network error matching location', err);
+    return { status: 'error', message: err.message || 'Network error' };
+  }
+}
+
+// Example usage: get browser position then call:
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const teamName = document.getElementById('member-team-select').value; // adjust selector
+    const result = await matchLocationForTeam(teamName, lat, lng);
+    if (result && result.status === 'success') {
+      if (result.matched) {
+        alert('Location matched! You may proceed to start camera and mark attendance.');
+      } else {
+        alert(`Location not matched (distance: ${result.distance_m} m, allowed ${result.tolerance_m} m).`);
+      }
+    } else {
+      alert('Could not verify location: ' + (result && result.message));
+    }
+  }, (err) => {
+    alert('Geolocation error: ' + err.message);
+  }, { enableHighAccuracy: true, timeout: 10000 });
+} else {
+  alert('Geolocation not supported in this browser.');
+}
+
+
+
+
+
+
+
+// initial loads
+loadMemberTodayScans();
+loadMemberFinalAttendance();
+
+</script>
+{% endblock %}

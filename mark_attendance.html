@@ -1,0 +1,1238 @@
+{% extends "layout.html" %}
+{% block title %}Mark Attendance{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Mark Team Attendance</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+            <div class="mb-4">
+                <label for="team-select" class="block text-sm font-medium text-gray-700 mb-1">Select Team for Attendance</label>
+                <select id="team-select" class="w-full p-2 border border-gray-300 rounded-lg">
+                    <option value="" disabled selected>Choose a team...</option>
+                     {% for team in teams %}
+                    <option value="{{ team }}">{{ team }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex space-x-4 mb-4">
+                <button id="start-btn" class="flex-1 bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition disabled:bg-gray-400" disabled>Start Attendance</button>
+                <button id="stop-btn" class="flex-1 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition disabled:bg-gray-400" disabled>Stop Attendance</button>
+            </div>
+
+            <div id="cooldown-controls" class="bg-white p-4 rounded-lg shadow-md mb-4">
+  <h3 class="text-lg font-semibold">Cooldown Control</h3>
+  <div class="flex items-center gap-3 mt-3">
+    <div>
+      <label class="block text-sm text-gray-600">Current cooldown (minutes)</label>
+      <input type="number" id="current-cooldown-min" class="p-2 border rounded" min="0" value="120">
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="save-cooldown-btn" class="px-3 py-2 bg-green-600 text-white rounded">Save</button>
+      <button id="refresh-cooldown-btn" class="px-3 py-2 bg-gray-100 rounded">Refresh</button>
+    </div>
+    <div class="ml-auto">
+      <button id="manual-mark-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Mark Attendance</button>
+    </div>
+  </div>
+  <p id="cooldown-message" class="text-sm text-gray-500 mt-2"></p>
+</div>
+
+            <img id="video-feed" src="https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off" class="w-full rounded-lg border border-gray-300" alt="Camera Feed">
+        </div>
+
+<!--        <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">-->
+<!--            <h2 class="text-xl font-semibold mb-4 text-center">Today's Attendance Scans</h2>-->
+<!--            <div>-->
+<!--                <h3 class="font-semibold mb-2 text-blue-600">Morning (AM)</h3>-->
+<!--                <div class="overflow-auto max-h-60 border rounded-lg">-->
+<!--                    <table class="min-w-full text-sm">-->
+<!--                        <thead class="bg-gray-100"><tr><th class="p-2 text-left">Name</th><th class="p-2 text-left">Time</th></tr></thead>-->
+<!--                        <tbody id="morning-table"></tbody>-->
+<!--                    </table>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="mt-6">-->
+<!--                <h3 class="font-semibold mb-2 text-indigo-600">Evening (PM)</h3>-->
+<!--                <div class="overflow-auto max-h-60 border rounded-lg">-->
+<!--                    <table class="min-w-full text-sm">-->
+<!--                         <thead class="bg-gray-100"><tr><th class="p-2 text-left">Name</th><th class="p-2 text-left">Time</th></tr></thead>-->
+<!--                        <tbody id="evening-table"></tbody>-->
+<!--                    </table>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+<div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4 text-center">Today's Live Attendance Report</h2>
+
+            <div>
+                <h3 class="font-semibold mb-2 text-blue-600">In Time Scans</h3>
+                <div class="overflow-auto max-h-60 border rounded-lg">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 text-left">Name</th>
+                                <th class="p-2 text-left">Time</th>
+                                <th class="p-2 text-center">Late</th>
+                            </tr>
+                        </thead>
+                        <tbody id="in-time-table">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <h3 class="font-semibold mb-2 text-indigo-600">Out Time Scans</h3>
+                <div class="overflow-auto max-h-60 border rounded-lg">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 text-left">Name</th>
+                                <th class="p-2 text-left">Time</th>
+                                <th class="p-2 text-left">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="out-time-table">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="attendance-rules-section" class="mt-8 bg-white p-6 rounded-lg shadow-md hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Set Attendance Criteria</h2>
+        <div class="space-y-6">
+            <div>
+                <label for="criteria-type" class="block text-sm font-medium text-gray-700">Attendance Calculation Method</label>
+                <select id="criteria-type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <option value="time">By Specific In/Out Times</option>
+                    <option value="hours">By Total Working Hours</option>
+                </select>
+            </div>
+
+            <div id="rules-by-time" class="space-y-4 p-4 border border-gray-200 rounded-lg">
+                <h3 class="font-semibold text-lg text-gray-700">Rules by Time</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="office-start-time" class="block text-sm font-medium text-gray-700">Office In-Time (e.g., 09:30)</label>
+                        <input type="time" id="office-start-time" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                <hr>
+                <p class="font-medium text-gray-600">Half-Day Rules:</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="in-time-safe-end" class="block text-sm font-medium text-gray-700">On-Time Arrival End</label>
+                        <input type="time" id="in-time-safe-end" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="in-time-late-end" class="block text-sm font-medium text-gray-700">Late Arrival End</label>
+                        <input type="time" id="in-time-late-end" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label for="half-day-out-time" class="block text-sm font-medium text-gray-700">Required Out-Time for Half-Day</label>
+                        <input type="time" id="half-day-out-time" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                 <hr>
+                <p class="font-medium text-gray-600">Full-Day Rules:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label for="full-day-early-out" class="block text-sm font-medium text-gray-700">Out-Time with 'Early Going'</label>
+                        <input type="time" id="full-day-early-out" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label for="full-day-present-out" class="block text-sm font-medium text-gray-700">Required Out-Time for Full-Day</label>
+                        <input type="time" id="full-day-present-out" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+            </div>
+
+            <div id="rules-by-hours" class="hidden space-y-4 p-4 border border-gray-200 rounded-lg">
+                <h3 class="font-semibold text-lg text-gray-700">Rules by Hours</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="min-hours-half" class="block text-sm font-medium text-gray-700">Min. Hours for Half-Day</label>
+                        <input type="number" id="min-hours-half" step="0.1" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="min-hours-early" class="block text-sm font-medium text-gray-700">Min. Hours (with Early Go)</label>
+                        <input type="number" id="min-hours-early" step="0.1" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label for="min-hours-full" class="block text-sm font-medium text-gray-700">Min. Hours for Full-Day</label>
+                        <input type="number" id="min-hours-full" step="0.1" class="mt-1 p-2 w-full border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-6">
+            <button id="save-rules-btn" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition">Save Rules</button>
+        </div>
+    </div>
+
+<!-- Location-based attendance (Leader) -->
+<div class="bg-white p-4 rounded-lg shadow-md mt-6">
+  <h3 class="text-lg font-semibold">Marked attendance by location tracker</h3>
+
+  <div class="mt-3 grid md:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Select Team</label>
+      <select id="loc-team-select" class="mt-1 p-2 border rounded w-full">
+        <option value="">-- Select Team --</option>
+        {% for team in teams %}
+          <option value="{{ team }}">{{ team }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Place name / pin code (optional)</label>
+      <input id="loc-place-text" type="text" class="mt-1 p-2 border rounded w-full" placeholder="Enter place name or pin">
+    </div>
+  </div>
+
+  <div class="mt-3 flex gap-2 items-center">
+    <input id="loc-search-input" type="text" class="p-2 border rounded w-1/2" placeholder="Search place (e.g. 'Connaught Place, Delhi')">
+    <button id="loc-search-btn" class="px-3 py-2 bg-indigo-500 text-white rounded">Search</button>
+    <button id="loc-my-location-btn" class="px-3 py-2 bg-gray-200 text-gray-800 rounded">My Location</button>
+    <div id="loc-search-results" class="ml-3 w-1/2 max-h-48 overflow-auto hidden border rounded bg-white z-50 absolute"></div>
+  </div>
+
+  <div class="mt-4">
+    <div class="flex gap-2 items-center">
+      <button id="loc-open-map-btn" class="px-3 py-2 bg-indigo-600 text-white rounded">Open Map</button>
+      <button id="loc-save-btn" class="px-3 py-2 bg-green-600 text-white rounded">Save Location</button>
+      <button id="loc-start-btn" class="px-3 py-2 bg-blue-600 text-white rounded">Start</button>
+      <button id="loc-stop-btn" class="px-3 py-2 bg-red-600 text-white rounded">Stop</button>
+      <div id="loc-save-status" class="text-sm text-gray-600 ml-3"></div>
+    </div>
+  </div>
+
+  <div id="loc-map-wrapper" class="mt-4 hidden relative">
+    <div id="loc-map" style="height: 360px; border: 1px solid #ddd;"></div>
+    <p class="text-sm text-gray-500 mt-2">Click on map to place the attendance anchor point. You can drag the marker to fine tune.</p>
+    <div class="mt-2 text-sm text-gray-700">Selected: <span id="loc-selected-coords">none</span></div>
+    <div class="mt-2">
+      <label class="text-sm text-gray-700">Tolerance (meters)</label>
+      <input id="loc-tolerance" type="number" value="10" class="p-2 border rounded w-32 mt-1">
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <h4 class="font-semibold">Today's location attendance (for selected team)</h4>
+<!--    <div id="loc-todays-table" class="mt-2">-->
+<!--      <p class="text-sm text-gray-500">Select a team and click "Start" to view today's location attendance.</p>-->
+<!--    </div>-->
+      <div id="loc-todays-table" class="mt-2 border rounded-lg" style="max-height: 300px; overflow-y: auto;">
+    <table class="min-w-full text-sm">
+        <thead class="bg-gray-100 sticky top-0">
+            <tr>
+                <th class="p-2 text-left">Name</th>
+                <th class="p-2 text-left">In Time</th>
+                <th class="p-2 text-left">Out Time</th>
+                <th class="p-2 text-left">Details</th>
+            </tr>
+        </thead>
+        <tbody id="location-report-tbody">
+            <tr><td colspan="4" class="p-4 text-center text-gray-500">Select a team to view report.</td></tr>
+        </tbody>
+    </table>
+      </div>
+  </div>
+</div>
+
+    <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Final Attendance Report</h2>
+        <div class="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+                <label for="report-date-select" class="block text-sm font-medium text-gray-700">Select Date</label>
+                <input type="date" id="report-date-select" class="p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div>
+                <label for="report-team-select" class="block text-sm font-medium text-gray-700">Select Team</label>
+                <select id="report-team-select" class="p-2 border border-gray-300 rounded-lg">
+                    <option value="" disabled selected>Choose a team...</option>
+                    {% for team in teams %}
+                    <option value="{{ team }}">{{ team }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button id="view-report-btn" class="self-end bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition">View Report</button>
+        </div>
+
+        <div id="final-report-container" class="overflow-x-auto">
+            <p class="text-center text-gray-500">Select a date and team to view the final report.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // =========================
+    // Utilities and defensive fetch
+    // =========================
+    function el(id){ return document.getElementById(id); }
+    function safeTextFetch(url, opts = {}) {
+        opts.credentials = opts.credentials || 'same-origin';
+        return fetch(url, opts).then(async r => {
+            const txt = await r.text().catch(()=> '');
+            if (txt && txt.trim().startsWith('<')) return { ok: false, status: r.status, text: txt };
+            try { return { ok: r.ok, status: r.status, json: JSON.parse(txt || 'null') }; } catch(e) { return { ok: r.ok, status: r.status, text: txt }; }
+        }).catch(err => ({ ok: false, status: 0, error: err.message || String(err) }));
+    }
+    async function fetchJsonOrThrow(url, opts={}) {
+      opts.credentials = 'same-origin';
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        throw new Error(`HTTP ${res.status}: ${txt}`);
+      }
+      const txt = await res.text();
+      if (txt && txt.trim().startsWith('<')) throw new Error('Server returned HTML (likely session expired).');
+      try { return JSON.parse(txt || '{}'); } catch(e) { throw new Error('Invalid JSON'); }
+    }
+
+
+function safeFetchJson(url, opts = {}) {
+        // convenience: throws on failure but with clearer message
+        opts.credentials = opts.credentials || 'same-origin';
+        return fetch(url, opts).then(async r => {
+            const txt = await r.text().catch(()=> '');
+            if (txt && txt.trim().startsWith('<')) throw new Error('Server returned HTML (likely session expired).');
+            try { return JSON.parse(txt || '{}'); } catch(e) { throw new Error('Invalid JSON from server'); }
+        });
+    }
+
+
+    const placeholderImg = "https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off";
+
+    // -------------------------
+    // DOM references
+    // -------------------------
+    const teamSelect = el('team-select');
+    const startBtn = el('start-btn');
+    const stopBtn = el('stop-btn');
+    const videoFeed = el('video-feed');
+    const morningTable = el('morning-table');
+    const eveningTable = el('evening-table');
+
+    const reportDateSelect = el('report-date-select');
+    const reportTeamSelect = el('report-team-select');
+    const viewReportBtn = el('view-report-btn');
+    const finalReportContainer = el('final-report-container');
+
+    const rulesSection = el('attendance-rules-section');
+    const criteriaTypeSelect = el('criteria-type');
+    const rulesByTimeDiv = el('rules-by-time');
+    const rulesByHoursDiv = el('rules-by-hours');
+    const saveRulesBtn = el('save-rules-btn');
+
+    // location elements
+    const locTeamSelect = el('loc-team-select');
+    const placeText = el('loc-place-text');
+    const openMapBtn = el('loc-open-map-btn');
+    const mapWrapper = el('loc-map-wrapper');
+    const mapEl = el('loc-map');
+    const saveLocBtn = el('loc-save-btn');
+    const locStartBtn = el('loc-start-btn');
+    const locStopBtn = el('loc-stop-btn');
+    const selectedCoordsEl = el('loc-selected-coords');
+    const toleranceInput = el('loc-tolerance');
+    const saveStatus = el('loc-save-status');
+    const todaysDiv = el('loc-todays-table');
+
+    // search + my location
+    const locSearchInput = el('loc-search-input');
+    const locSearchBtn = el('loc-search-btn');
+    const locSearchResults = el('loc-search-results');
+    const locMyLocationBtn = el('loc-my-location-btn');
+
+    // cooldown controls
+    const currentCooldownMinInput = el('current-cooldown-min');
+    const saveCooldownBtn = el('save-cooldown-btn');
+    const refreshCooldownBtn = el('refresh-cooldown-btn');
+    const manualMarkBtn = el('manual-mark-btn');
+    const cooldownMessage = el('cooldown-message');
+
+    // -------------------------
+    // Helpers
+    // -------------------------
+    function getTodayDateString() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth()+1).padStart(2,'0');
+        const dd = String(today.getDate()).padStart(2,'0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    reportDateSelect.value = getTodayDateString();
+
+
+
+<!-- teamSelect.addEventListener('change', async () => {-->
+<!--        const teamName = teamSelect.value;-->
+<!--        startBtn.disabled = !teamName;-->
+<!--        stopBtn.disabled = true; // ensure stopped until started-->
+<!--        rulesSection.classList.toggle('hidden', !teamName); // Show/hide rules section-->
+<!--        if (teamName) {-->
+<!--            try { await fetchAndPopulateRules(teamName); } catch(e) { console.warn(e); }-->
+<!--            updateAttendanceTables();-->
+<!--            reportTeamSelect.value = teamName;-->
+<!--            fetchFinalReport(getTodayDateString(), teamName).catch(()=>{});-->
+<!--        }-->
+<!--    });-->
+
+
+
+<!--    // ===========================-->
+<!--    // Attendance camera start/stop-->
+<!--    // ===========================-->
+<!--    let attendanceInterval = null;-->
+<!--    startBtn.addEventListener('click', () => {-->
+<!--        const teamName = teamSelect.value;-->
+<!--        if (!teamName) return;-->
+<!--        videoFeed.src = `/video_feed/${encodeURIComponent(teamName)}`;-->
+<!--        startBtn.disabled = true;-->
+<!--        stopBtn.disabled = false;-->
+<!--        teamSelect.disabled = true;-->
+<!--        attendanceInterval = setInterval(updateAttendanceTables, 5000);-->
+<!--        updateAttendanceTables();-->
+<!--    });-->
+<!--    stopBtn.addEventListener('click', () => {-->
+<!--        videoFeed.src = placeholderImg;-->
+<!--        startBtn.disabled = false;-->
+<!--        stopBtn.disabled = true;-->
+<!--        teamSelect.disabled = false;-->
+<!--        if (attendanceInterval) { clearInterval(attendanceInterval); attendanceInterval = null; }-->
+<!--        setTimeout(() => {-->
+<!--            updateAttendanceTables();-->
+<!--            if (teamSelect.value) fetchFinalReport(getTodayDateString(), teamSelect.value).catch(()=>{});-->
+<!--        }, 1000);-->
+<!--    });-->
+
+// new one is here:
+let attendanceInterval = null;
+
+    teamSelect.addEventListener('change', () => {
+        startBtn.disabled = !teamSelect.value;
+        stopBtn.disabled = true;
+        if (teamSelect.value) {
+            updateTodaysTable();
+            // You may also have logic here to fetch rules, etc.
+        }
+    });
+
+    startBtn.addEventListener('click', () => {
+        const teamName = teamSelect.value;
+        if (!teamName) return;
+        videoFeed.src = `/video_feed/${encodeURIComponent(teamName)}`;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        teamSelect.disabled = true;
+        attendanceInterval = setInterval(updateTodaysTable, 5000); // Refresh table every 5 seconds
+    });
+
+    stopBtn.addEventListener('click', () => {
+        videoFeed.src = "https://placehold.co/640x480/E2E8F0/A0AEC0?text=Camera+Off";
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        teamSelect.disabled = false;
+        if (attendanceInterval) {
+            clearInterval(attendanceInterval);
+            attendanceInterval = null;
+        }
+        setTimeout(updateTodaysTable, 1000); // Final refresh after stopping
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ===========================
+    // Final report
+    // ===========================
+    viewReportBtn.addEventListener('click', () => {
+        const date = reportDateSelect.value;
+        const team = reportTeamSelect.value;
+        if (!date || !team) { alert('Please select both a date and a team.'); return; }
+        fetchFinalReport(date, team).catch(()=>{});
+    });
+
+    async function fetchFinalReport(dateStr, teamName) {
+        if (!dateStr || !teamName) return;
+        finalReportContainer.innerHTML = '<p class="text-center text-gray-500">Loading report...</p>';
+        try {
+            const resp = await safeTextFetch(`/api/get_final_attendance/${encodeURIComponent(teamName)}/${encodeURIComponent(dateStr)}`);
+            if (!resp.ok) {
+                finalReportContainer.innerHTML = `<div class="text-sm text-red-500 p-4">Failed to load attendance (status ${resp.status}).</div>`;
+                return;
+            }
+            const reportData = resp.json || [];
+            renderFinalTable(reportData, dateStr);
+        } catch (err) {
+            finalReportContainer.innerHTML = `<div class="text-sm text-red-500 p-4">Failed to load attendance: ${err.message}</div>`;
+        }
+    }
+
+    function renderFinalTable(data, dateStr) {
+        if (!Array.isArray(data) || data.length === 0) {
+            finalReportContainer.innerHTML = '<p class="text-center text-gray-500">No members found in this team to generate a report.</p>';
+            return;
+        }
+        let tableHTML = `
+            <h3 class="text-xl font-semibold mb-4 text-center">Final Attendance for ${dateStr}</h3>
+            <div class="overflow-auto border rounded-lg">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 text-left">Member Name</th>
+                            <th class="p-2 text-left">Enrollment ID</th>
+                            <th class="p-2 text-left">Time In</th>
+                            <th class="p-2 text-left">Time Out</th>
+                            <th class="p-2 text-left">Work Hours</th>
+                            <th class="p-2 text-center">Late</th>
+                            <th class="p-2 text-center">Early Go</th>
+                            <th class="p-2 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        const statusStyles = {
+            'Present': 'bg-green-100 text-green-800',
+            'Half Day': 'bg-yellow-100 text-yellow-800',
+            'Absent': 'bg-red-100 text-red-800',
+            'Leave': 'bg-blue-100 text-blue-800'
+        };
+
+        data.forEach(member => {
+            const baseStatus = (member.status || '').split('(')[0].trim();
+            const style = statusStyles[baseStatus] || 'bg-gray-100 text-gray-800';
+            const lateMark = member.late_coming ? '<span class="text-red-500 font-bold">✔</span>' : '—';
+            const earlyMark = member.early_going ? '<span class="text-orange-500 font-bold">✔</span>' : '—';
+
+            tableHTML += `
+                <tr class="border-b">
+                    <td class="p-2">${member.name}</td>
+                    <td class="p-2">${member.enrollment_id}</td>
+                    <td class="p-2">${member.time_in || '-'}</td>
+                    <td class="p-2">${member.time_out || '-'}</td>
+                    <td class="p-2">${member.working_hours || '0h 0m'}</td>
+                    <td class="p-2 text-center">${lateMark}</td>
+                    <td class="p-2 text-center">${earlyMark}</td>
+                    <td class="p-2 font-semibold">
+                        <span class="px-2 py-1 rounded-full ${style}">${member.status || 'N/A'}</span>
+                    </td>
+                </tr>`;
+        });
+        tableHTML += '</tbody></table></div>';
+        finalReportContainer.innerHTML = tableHTML;
+    }
+
+    // ===========================
+    // Rules fetch & save
+    // ===========================
+<!--    criteriaTypeSelect.addEventListener('change', () => {-->
+<!--        const isTime = criteriaTypeSelect.value === 'time';-->
+<!--        rulesByTimeDiv.classList.toggle('hidden', !isTime);-->
+<!--        rulesByHoursDiv.classList.toggle('hidden', isTime);-->
+<!--    });-->
+
+<!--    async function fetchAndPopulateRules(teamName) {-->
+<!--        try {-->
+<!--            const resp = await safeTextFetch(`/api/get_attendance_rules/${encodeURIComponent(teamName)}`);-->
+<!--            if (!resp.ok) throw new Error('Could not fetch rules');-->
+<!--            const rules = resp.json || {};-->
+<!--            criteriaTypeSelect.value = rules.criteria_type || 'time';-->
+<!--            document.getElementById('office-start-time').value = rules.office_start_time || '';-->
+<!--            document.getElementById('in-time-safe-end').value = (rules.half_day && rules.half_day.by_time && rules.half_day.by_time.in_time_safe_range_end) || '';-->
+<!--            document.getElementById('in-time-late-end').value = (rules.half_day && rules.half_day.by_time && rules.half_day.by_time.in_time_late_range_end) || '';-->
+<!--            document.getElementById('half-day-out-time').value = (rules.half_day && rules.half_day.by_time && rules.half_day.by_time.required_out_time) || '';-->
+<!--            document.getElementById('full-day-early-out').value = (rules.full_day && rules.full_day.by_time && rules.full_day.by_time.required_out_time_early_go) || '';-->
+<!--            document.getElementById('full-day-present-out').value = (rules.full_day && rules.full_day.by_time && rules.full_day.by_time.required_out_time_present) || '';-->
+<!--            document.getElementById('min-hours-half').value = (rules.half_day && rules.half_day.by_hours && rules.half_day.by_hours.min_hours) || 0;-->
+<!--            document.getElementById('min-hours-early').value = (rules.full_day && rules.full_day.by_hours && rules.full_day.by_hours.min_hours_early_go) || 0;-->
+<!--            document.getElementById('min-hours-full').value = (rules.full_day && rules.full_day.by_hours && rules.full_day.by_hours.min_hours_present) || 0;-->
+<!--            criteriaTypeSelect.dispatchEvent(new Event('change'));-->
+<!--        } catch (err) {-->
+<!--            console.warn('Failed to fetch attendance rules:', err);-->
+<!--        }-->
+<!--    }-->
+
+<!--    saveRulesBtn.addEventListener('click', async () => {-->
+<!--        const teamName = teamSelect.value;-->
+<!--        if (!teamName) { alert("Please select a team first."); return; }-->
+<!--        const rulesData = {-->
+<!--            criteria_type: criteriaTypeSelect.value,-->
+<!--            office_start_time: document.getElementById('office-start-time').value,-->
+<!--            half_day: {-->
+<!--                by_time: {-->
+<!--                    in_time_safe_range_end: document.getElementById('in-time-safe-end').value,-->
+<!--                    in_time_late_range_end: document.getElementById('in-time-late-end').value,-->
+<!--                    required_out_time: document.getElementById('half-day-out-time').value-->
+<!--                },-->
+<!--                by_hours: {-->
+<!--                    min_hours: parseFloat(document.getElementById('min-hours-half').value) || 0-->
+<!--                }-->
+<!--            },-->
+<!--            full_day: {-->
+<!--                by_time: {-->
+<!--                    required_out_time_early_go: document.getElementById('full-day-early-out').value,-->
+<!--                    required_out_time_present: document.getElementById('full-day-present-out').value-->
+<!--                },-->
+<!--                by_hours: {-->
+<!--                    min_hours_early_go: parseFloat(document.getElementById('min-hours-early').value) || 0,-->
+<!--                    min_hours_present: parseFloat(document.getElementById('min-hours-full').value) || 0-->
+<!--                }-->
+<!--            }-->
+<!--        };-->
+<!--        try {-->
+<!--            const res = await safeTextFetch(`/api/save_attendance_rules/${encodeURIComponent(teamName)}`, {-->
+<!--                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rulesData)-->
+<!--            });-->
+<!--            if (!res.ok) { alert('Save failed.'); return; }-->
+<!--            alert(res.json?.message || 'Rules saved.');-->
+<!--            if (reportTeamSelect.value === teamName && reportDateSelect.value) fetchFinalReport(reportDateSelect.value, teamName).catch(()=>{});-->
+<!--        } catch (err) {-->
+<!--            alert('Error saving rules.');-->
+<!--            console.error(err);-->
+<!--        }-->
+<!--    });-->
+
+
+    // --- ATTENDANCE RULES SCRIPT ---
+    (function rulesModule() {
+        const criteriaTypeSelect = el('criteria-type');
+        const rulesByTimeDiv = el('rules-by-time');
+        const rulesByHoursDiv = el('rules-by-hours');
+        const saveRulesBtn = el('save-rules-btn');
+
+        criteriaTypeSelect.addEventListener('change', () => {
+            const isTime = criteriaTypeSelect.value === 'time';
+            rulesByTimeDiv.classList.toggle('hidden', !isTime);
+            rulesByHoursDiv.classList.toggle('hidden', isTime);
+        });
+
+        async function fetchAndPopulateRules(teamName) {
+            try {
+                const rules = await fetchJsonOrThrow(`/api/get_attendance_rules/${encodeURIComponent(teamName)}`);
+                criteriaTypeSelect.value = rules.criteria_type || 'time';
+                el('office-start-time').value = rules.office_start_time || '';
+                el('in-time-safe-end').value = (rules.half_day?.by_time?.in_time_safe_range_end) || '';
+                el('in-time-late-end').value = (rules.half_day?.by_time?.in_time_late_range_end) || '';
+                el('half-day-out-time').value = (rules.half_day?.by_time?.required_out_time) || '';
+                el('full-day-early-out').value = (rules.full_day?.by_time?.required_out_time_early_go) || '';
+                el('full-day-present-out').value = (rules.full_day?.by_time?.required_out_time_present) || '';
+                el('min-hours-half').value = (rules.half_day?.by_hours?.min_hours) || 0;
+                el('min-hours-early').value = (rules.full_day?.by_hours?.min_hours_early_go) || 0;
+                el('min-hours-full').value = (rules.full_day?.by_hours?.min_hours_present) || 0;
+                criteriaTypeSelect.dispatchEvent(new Event('change'));
+            } catch (err) {
+                console.warn('Failed to fetch attendance rules:', err);
+            }
+        }
+
+        saveRulesBtn.addEventListener('click', async () => {
+            const teamName = teamSelect.value;
+            if (!teamName) return alert("Please select a team first.");
+            const rulesData = {
+                criteria_type: criteriaTypeSelect.value, office_start_time: el('office-start-time').value,
+                half_day: { by_time: { in_time_safe_range_end: el('in-time-safe-end').value, in_time_late_range_end: el('in-time-late-end').value, required_out_time: el('half-day-out-time').value }, by_hours: { min_hours: parseFloat(el('min-hours-half').value) || 0 }},
+                full_day: { by_time: { required_out_time_early_go: el('full-day-early-out').value, required_out_time_present: el('full-day-present-out').value }, by_hours: { min_hours_early_go: parseFloat(el('min-hours-early').value) || 0, min_hours_present: parseFloat(el('min-hours-full').value) || 0 }}
+            };
+            try {
+                const res = await fetchJsonOrThrow(`/api/save_attendance_rules/${encodeURIComponent(teamName)}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rulesData) });
+                alert(res.message || 'Rules saved.');
+            } catch (err) {
+                alert('Error saving rules.');
+            }
+        });
+
+        // Expose function to be called by other modules
+        window.fetchAndPopulateRules = fetchAndPopulateRules;
+    })();
+
+    // --- MAIN TEAM SELECT LISTENER (CONNECTS MODULES) ---
+    teamSelect.addEventListener('change', async () => {
+        const teamName = teamSelect.value;
+        const startBtn = el('start-btn');
+        startBtn.disabled = !teamName;
+        rulesSection.classList.toggle('hidden', !teamName);
+
+        if (teamName) {
+            // Update other select menus for consistency
+            reportTeamSelect.value = teamName;
+            locTeamSelect.value = teamName;
+            // Call functions from other modules
+            await window.fetchAndPopulateRules(teamName);
+            window.updateTodaysTable();
+        }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ===========================
+    // Today's scans
+    // ===========================
+<!--    async function updateAttendanceTables() {-->
+<!--        const teamName = teamSelect.value;-->
+<!--        if (!teamName) return;-->
+<!--        try {-->
+<!--            const resp = await safeTextFetch(`/api/get_todays_attendance/${encodeURIComponent(teamName)}`);-->
+<!--            if (!resp.ok) { renderScanTable(morningTable, []); renderScanTable(eveningTable, []); return; }-->
+<!--            const data = resp.json || { morning: [], evening: [] };-->
+<!--            renderScanTable(morningTable, data.morning || []);-->
+<!--            renderScanTable(eveningTable, data.evening || []);-->
+<!--        } catch (err) {-->
+<!--            console.error('updateAttendanceTables error:', err);-->
+<!--            renderScanTable(morningTable, []); renderScanTable(eveningTable, []);-->
+<!--        }-->
+<!--    }-->
+
+<!--    function renderScanTable(tableBody, data) {-->
+<!--        tableBody.innerHTML = '';-->
+<!--        if (!Array.isArray(data) || data.length === 0) {-->
+<!--            tableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-500">No records yet.</td></tr>';-->
+<!--        } else {-->
+<!--            data.forEach(entry => {-->
+<!--                const name = entry.name || entry.full_name || entry.member_name || '—';-->
+<!--                const time = entry.time || entry.timestamp || entry.logged_at || '—';-->
+<!--                tableBody.innerHTML += `<tr class="border-b"><td class="p-2">${name}</td><td class="p-2">${time}</td></tr>`;-->
+<!--            });-->
+<!--        }-->
+<!--    }-->
+//new one
+async function updateTodaysTable() {
+        const teamName = teamSelect.value;
+        const inTimeTbody = document.getElementById('in-time-table');
+        const outTimeTbody = document.getElementById('out-time-table');
+
+        if (!teamName) {
+            const placeholder = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Select a team.</td></tr>';
+            inTimeTbody.innerHTML = placeholder;
+            outTimeTbody.innerHTML = placeholder;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/get_todays_attendance/${encodeURIComponent(teamName)}`);
+            if (!response.ok) throw new Error('Failed to fetch data');
+            const data = await response.json();
+
+            let inTimeHtml = '';
+            let outTimeHtml = '';
+
+            if (!data || data.length === 0) {
+                const placeholder = '<tr><td colspan="3" class="p-4 text-center text-gray-500">No active members.</td></tr>';
+                inTimeTbody.innerHTML = placeholder;
+                outTimeTbody.innerHTML = placeholder;
+                return;
+            }
+
+            data.forEach(member => {
+                // Populate In-Time table if time_in exists
+                if (member.time_in && member.time_in !== '-') {
+                    const lateMark = member.late_coming ? '<span class="text-red-500 font-bold">✔</span>' : '—';
+                    inTimeHtml += `
+                        <tr class="border-b">
+                            <td class="p-2 font-semibold">${member.name}</td>
+                            <td class="p-2">${member.time_in}</td>
+                            <td class="p-2 text-center">${lateMark}</td>
+                        </tr>
+                    `;
+                }
+
+                // Populate Out-Time table if time_out exists
+                if (member.time_out && member.time_out !== '-') {
+                    const earlyBadge = member.early_going ? `<span class="ml-1 text-xs font-semibold text-white bg-orange-500 px-1.5 py-0.5 rounded-full">Early</span>` : '';
+                    const statusColors = {'Present': 'text-green-600', 'Half Day': 'text-yellow-600', 'Absent': 'text-red-600', 'Leave': 'text-blue-600', 'N/A': 'text-gray-400'};
+                    const statusColor = statusColors[member.status] || 'text-gray-800';
+
+                    outTimeHtml += `
+                        <tr class="border-b">
+                            <td class="p-2 font-semibold">${member.name}</td>
+                            <td class="p-2">${member.time_out} ${earlyBadge}</td>
+                            <td class="p-2 text-xs text-gray-500">
+                                <div>Hrs: ${member.working_hours || '0h 0m'}</div>
+                                <div class="font-bold ${statusColor}">${member.status || 'N/A'}</div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+
+            inTimeTbody.innerHTML = inTimeHtml || '<tr><td colspan="3" class="p-4 text-center text-gray-500">No In-Time scans yet.</td></tr>';
+            outTimeTbody.innerHTML = outTimeHtml || '<tr><td colspan="3" class="p-4 text-center text-gray-500">No Out-Time scans yet.</td></tr>';
+
+        } catch (err) {
+            console.error('Update table error:', err);
+            const errorRow = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error loading data.</td></tr>';
+            inTimeTbody.innerHTML = errorRow;
+            outTimeTbody.innerHTML = errorRow;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+    // ===========================
+    // Cooldown & manual mark
+    // ===========================
+    function showMsg(msg, type='info') {
+      if (!cooldownMessage) return;
+      cooldownMessage.textContent = msg;
+      cooldownMessage.className = type === 'error' ? 'text-sm text-red-500 mt-2' : 'text-sm text-gray-500 mt-2';
+    }
+
+(async function cooldownInit(){
+      // Determine teamName for cooldown (prefer the select)
+      let teamName = (teamSelect && teamSelect.value) ? teamSelect.value : (reportTeamSelect && reportTeamSelect.value) ? reportTeamSelect.value : '';
+      if (!teamName && teamSelect && teamSelect.options.length>1) {
+        // do not automatically choose; keep empty
+      }
+
+
+      
+      async function loadCooldown(localTeam) {
+        if (!localTeam) return;
+        try {
+          const r = await safeTextFetch(`/api/get_cooldown/${encodeURIComponent(localTeam)}`);
+          if (!r.ok) { showMsg(`Could not load cooldown for ${localTeam}`, 'error'); return; }
+          const j = r.json || {};
+          currentCooldownMinInput.value = Math.round((j.seconds || 7200)/60);
+          showMsg(`Current cooldown for ${localTeam}: ${Math.round((j.seconds || 7200)/60)} minutes.`);
+        } catch (e) { console.error('loadCooldown error', e); showMsg('Error loading cooldown.', 'error'); }
+      }
+
+      saveCooldownBtn && saveCooldownBtn.addEventListener('click', async () => {
+        const team = teamSelect.value;
+        if (!team) { alert('Select a team to set cooldown.'); return; }
+        const minutes = Number(currentCooldownMinInput.value || 0);
+        if (isNaN(minutes) || minutes < 0) { alert('Enter a valid non-negative number'); return; }
+        const seconds = Math.round(minutes * 60);
+        try {
+          const r = await safeTextFetch(`/api/set_cooldown/${encodeURIComponent(team)}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ seconds })
+          });
+          if (!r.ok) { alert('Failed to set cooldown.'); return; }
+          const j = r.json || {};
+          const stored = Number(j.seconds || seconds);
+          currentCooldownMinInput.value = Math.round(stored/60);
+          showMsg(`Cooldown saved: ${Math.round(stored/60)} minute(s).`);
+        } catch (e) { alert('Error saving cooldown.'); console.error(e); }
+      });
+      refreshCooldownBtn && refreshCooldownBtn.addEventListener('click', () => loadCooldown(teamSelect.value));
+
+      function disableMarkBtnFor(seconds) {
+        if (!manualMarkBtn) return;
+        manualMarkBtn.disabled = true;
+        const originalText = manualMarkBtn.getAttribute('data-orig') || manualMarkBtn.textContent;
+        manualMarkBtn.setAttribute('data-orig', originalText);
+        let remain = Math.max(0, Math.ceil(seconds));
+        manualMarkBtn.textContent = `${originalText} (${remain}s)`;
+        const interval = setInterval(() => {
+          remain -= 1;
+          if (remain <= 0) {
+            clearInterval(interval);
+            manualMarkBtn.disabled = false;
+            manualMarkBtn.textContent = originalText;
+          } else {
+            manualMarkBtn.textContent = `${originalText} (${remain}s)`;
+          }
+        }, 1000);
+      }
+
+      manualMarkBtn && manualMarkBtn.addEventListener('click', async () => {
+        const team = teamSelect.value;
+        if (!team) { alert('No team selected.'); return; }
+        manualMarkBtn.disabled = true;
+        try {
+          const r = await safeTextFetch('/api/manual_mark_attendance', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ team_name: team })
+          });
+          if (!r.ok) { alert('Failed to log attendance.'); manualMarkBtn.disabled = false; return; }
+          const j = r.json || {};
+          if (j.status === 'success') {
+            alert(j.message || 'Attendance logged.');
+            const secs = j.cooldown_seconds || ((await safeTextFetch(`/api/get_cooldown/${encodeURIComponent(team)}`)).json || {}).seconds || 7200;
+            disableMarkBtnFor(secs);
+            updateAttendanceTables();
+          } else if (j.status === 'cooldown') {
+            const secs = j.cooldown_seconds || 7200;
+            alert('Cooldown active. Try after ' + Math.ceil(secs/60) + ' minute(s).');
+            disableMarkBtnFor(secs);
+          } else if (j.status === 'leave') {
+            alert('Today is an announced leave day. Attendance not logged.');
+            manualMarkBtn.disabled = false;
+          } else {
+            alert('Error: ' + (j.message || 'Could not log attendance.'));
+            manualMarkBtn.disabled = false;
+          }
+        } catch (e) { alert('Network or server error while marking attendance.'); manualMarkBtn.disabled = false; console.error(e); }
+      });
+
+      teamSelect && teamSelect.addEventListener('change', async (ev) => { await loadCooldown(ev.target.value); });
+      if (teamSelect.value) await loadCooldown(teamSelect.value);
+    })();
+
+    // ===========================
+    // Location map module (lazy-load Leaflet)
+    // ===========================
+    (function locationModule(){
+      let map = null;
+      let marker = null;
+      let leafletLoaded = false;
+
+      function ensureLeafletLoaded() {
+        if (leafletLoaded) return Promise.resolve();
+        leafletLoaded = true;
+        return new Promise((resolve, reject) => {
+          const css = document.createElement('link');
+          css.rel = 'stylesheet';
+          css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(css);
+          const s = document.createElement('script');
+          s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load Leaflet'));
+          document.head.appendChild(s);
+        });
+      }
+
+      openMapBtn && openMapBtn.addEventListener('click', async () => {
+        mapWrapper.classList.toggle('hidden');
+        if (!map) {
+          try {
+            await ensureLeafletLoaded();
+            map = L.map('loc-map').setView([20.5937,78.9629], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+            map.on('click', function(e) {
+              const lat = e.latlng.lat, lng = e.latlng.lng;
+              if (!marker) {
+                marker = L.marker([lat, lng], {draggable:true}).addTo(map);
+                marker.on('dragend', function(ev) {
+                  const p = ev.target.getLatLng();
+                  selectedCoordsEl.textContent = p.lat.toFixed(6)+', '+p.lng.toFixed(6);
+                });
+              } else {
+                marker.setLatLng([lat, lng]);
+              }
+              selectedCoordsEl.textContent = lat.toFixed(6)+', '+lng.toFixed(6);
+            });
+          } catch (err) {
+            console.error('Leaflet init error', err);
+            alert('Map initialization failed; map features disabled.');
+            mapWrapper.classList.add('hidden');
+          }
+        } else {
+          // map already present; try invalidate size to render
+          try { map.invalidateSize(); } catch(e) {}
+        }
+      });
+
+      // Save location (map or text)
+      saveLocBtn && saveLocBtn.addEventListener('click', async () => {
+        const team = locTeamSelect.value;
+        if (!team) { alert('Select a team first'); return; }
+        saveStatus.textContent = 'Saving...';
+        try {
+          const tolerance = parseInt(toleranceInput.value || '10', 10);
+          let payload = { team_name: team, tolerance_meters: tolerance };
+          if (marker) {
+            const p = marker.getLatLng();
+            payload.method = 'map';
+            payload.lat = p.lat;
+            payload.lng = p.lng;
+            payload.name = placeText.value || '';
+          } else if (placeText.value && placeText.value.trim()) {
+            payload.method = 'text';
+            payload.name = placeText.value.trim();
+          } else {
+            alert('Either click on the map to set coordinates or enter a place name/pincode.');
+            saveStatus.textContent = '';
+            return;
+          }
+          const res = await fetchJsonOrThrow('/api/save_team_location', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+          });
+          saveStatus.textContent = 'Saved.';
+          console.log('saved location config', res);
+        } catch (err) {
+          console.error(err);
+          saveStatus.textContent = 'Save failed: ' + err.message;
+          alert('Save failed: ' + err.message);
+        } finally {
+          setTimeout(()=>saveStatus.textContent = '', 3000);
+        }
+      });
+
+      // Start/Stop location attendance
+      locStartBtn && locStartBtn.addEventListener('click', async () => {
+        const team = locTeamSelect.value;
+        if (!team) { alert('Select team'); return; }
+        try {
+          const res = await fetchJsonOrThrow('/api/start_location_attendance', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ team_name: team })
+          });
+          alert(res.message || 'Started');
+          await loadTodaysLocationTable(team);
+        } catch (err) { alert('Start failed: ' + err.message); }
+      });
+
+      locStopBtn && locStopBtn.addEventListener('click', async () => {
+        const team = locTeamSelect.value;
+        if (!team) { alert('Select team'); return; }
+        try {
+          const res = await fetchJsonOrThrow('/api/stop_location_attendance', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ team_name: team })
+          });
+          alert(res.message || 'Stopped');
+          await loadTodaysLocationTable(team);
+        } catch (err) { alert('Stop failed: ' + err.message); }
+      });
+
+      async function loadTodaysLocationTable(team) {
+        if (!team) { todaysDiv.innerHTML = '<p class="text-sm text-gray-500">Select a team first.</p>'; return; }
+        try {
+          const rows = await fetchJsonOrThrow(`/api/get_todays_location_attendance/${encodeURIComponent(team)}`);
+          if (!rows || rows.length === 0) {
+            todaysDiv.innerHTML = '<p class="text-sm text-gray-500">No location attendance yet for today.</p>';
+            return;
+          }
+          let html = `<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th>Date/Time</th><th>Enrollment ID</th><th>Name</th><th>Distance (m)</th><th>Status</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+          rows.forEach(r => {
+            html += `<tr><td class="px-4 py-2">${r.timestamp || ''}</td><td class="px-4 py-2">${r.enrollment_id}</td><td class="px-4 py-2">${r.name || ''}</td><td class="px-4 py-2">${(r.distance_m||0).toFixed(1)}</td><td class="px-4 py-2">${r.logged_status || (r.accepted===false ? 'Attempted (mismatch)' : '')}</td></tr>`;
+          });
+          html += '</tbody></table>';
+          todaysDiv.innerHTML = html;
+        } catch (err) {
+          console.error(err);
+          todaysDiv.innerHTML = `<div class="text-sm text-red-500">Failed to load today's location attendance: ${err.message}</div>`;
+        }
+      }
+
+// new one
+async function loadTodaysLocationTable(team) {
+    const tableBody = document.getElementById('location-report-tbody');
+    if (!team) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Select a team first.</td></tr>';
+        return;
+    }
+    try {
+        const data = await fetchJsonOrThrow(`/api/get_todays_location_attendance/${encodeURIComponent(team)}`);
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No attendance records yet for today.</td></tr>';
+            return;
+        }
+        tableBody.innerHTML = '';
+        data.forEach(rec => {
+            const dist = (rec.distance_m !== null && rec.distance_m !== undefined) ? `${rec.distance_m.toFixed(1)}m` : '-';
+            const statusColors = {'Present': 'text-green-600', 'Half Day': 'text-yellow-600', 'Absent': 'text-red-600'};
+            const statusColor = statusColors[rec.status] || 'text-gray-800';
+
+            tableBody.innerHTML += `
+                <tr class="border-b">
+                    <td class="p-2 font-semibold">${rec.name}</td>
+                    <td class="p-2">${rec.time_in || '-'}</td>
+                    <td class="p-2">${rec.time_out || '-'}</td>
+                    <td class="p-2 text-xs text-gray-600">
+                        <div>Dist: ${dist}</div>
+                        <div>Hrs: ${rec.working_hours || '0h 0m'}</div>
+                        <div class="font-bold ${statusColor}">${rec.status || 'N/A'}</div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Failed to load: ${err.message}</td></tr>`;
+    }
+}
+
+
+
+
+      locTeamSelect && locTeamSelect.addEventListener('change', () => {
+        const t = locTeamSelect.value;
+        loadTodaysLocationTable(t);
+        if (!t) return;
+        fetch(`/api/get_team_location/${encodeURIComponent(t)}`, { credentials: 'same-origin' })
+          .then(r => r.text())
+          .then(txt => {
+            if (txt && txt.trim().startsWith('<')) return;
+            let cfg = {};
+            try { cfg = txt ? JSON.parse(txt) : {}; } catch(e){ return; }
+            if (cfg.lat && cfg.lng && map) {
+              try {
+                map.setView([cfg.lat, cfg.lng], 16);
+                if (marker) marker.setLatLng([cfg.lat, cfg.lng]); else { marker = L.marker([cfg.lat, cfg.lng], {draggable:true}).addTo(map); marker.on('dragend', ev => selectedCoordsEl.textContent = ev.target.getLatLng().lat.toFixed(6)+', '+ev.target.getLatLng().lng.toFixed(6)); }
+                selectedCoordsEl.textContent = `${cfg.lat.toFixed(6)}, ${cfg.lng.toFixed(6)}`;
+              } catch(_) {}
+            } else if (cfg.name) {
+              placeText.value = cfg.name;
+            }
+            if (cfg.tolerance_meters) toleranceInput.value = cfg.tolerance_meters;
+          }).catch(()=>{});
+      });
+
+      // =========================
+      // Search places (Nominatim)
+      // =========================
+      async function searchLocation(query) {
+        if (!query || !query.trim()) return [];
+        const q = encodeURIComponent(query.trim());
+        // Nominatim search for places (client-side)
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}&addressdetails=1&limit=5`;
+        try {
+          const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, method: 'GET' });
+          if (!resp.ok) throw new Error('Place search failed');
+          const arr = await resp.json();
+          return arr; // array of results
+        } catch (err) {
+          console.error('Nominatim search error', err);
+          return [];
+        }
+      }
+
+      function renderSearchResults(results) {
+        if (!locSearchResults) return;
+        if (!results || results.length === 0) { locSearchResults.classList.add('hidden'); locSearchResults.innerHTML = ''; return; }
+        let html = '<div class="p-2">';
+        results.forEach((r, idx) => {
+          const display = (r.display_name || `${r.name || r.type || 'Result'}`);
+          html += `<div class="p-2 cursor-pointer hover:bg-gray-100 border-b" data-idx="${idx}" style="font-size:0.9rem">${display}</div>`;
+        });
+        html += '</div>';
+        locSearchResults.innerHTML = html;
+        locSearchResults.classList.remove('hidden');
+      }
+
+      // when user clicks a search result, center map and place marker
+      locSearchResults && locSearchResults.addEventListener('click', (ev) => {
+        const elClicked = ev.target.closest('[data-idx]');
+        if (!elClicked) return;
+        const idx = Number(elClicked.dataset.idx);
+        // retrieve the last results stored on element dataset
+        const raw = locSearchResults._lastResults || [];
+        const item = raw[idx];
+        if (!item) return;
+        // ensure map loaded
+        (async () => {
+          try {
+            await ensureLeafletLoaded();
+            if (!map) {
+              map = L.map('loc-map').setView([item.lat, item.lon], 14);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+            } else {
+              map.setView([item.lat, item.lon], 14);
+            }
+            if (!marker) {
+              marker = L.marker([Number(item.lat), Number(item.lon)], {draggable:true}).addTo(map);
+              marker.on('dragend', function(ev) { const p = ev.target.getLatLng(); selectedCoordsEl.textContent = p.lat.toFixed(6)+', '+p.lng.toFixed(6); });
+            } else {
+              marker.setLatLng([Number(item.lat), Number(item.lon)]);
+            }
+            selectedCoordsEl.textContent = Number(item.lat).toFixed(6)+', '+Number(item.lon).toFixed(6);
+            locSearchResults.classList.add('hidden');
+            locSearchResults._lastResults = null;
+          } catch (err) { console.error(err); alert('Could not center map on selected place.'); }
+        })();
+      });
+
+      // wire search button
+      locSearchBtn && locSearchBtn.addEventListener('click', async () => {
+        const q = locSearchInput.value;
+        if (!q || !q.trim()) { alert('Enter a place to search.'); return; }
+        locSearchResults.innerHTML = '<div class="p-2 text-sm text-gray-500">Searching…</div>';
+        locSearchResults.classList.remove('hidden');
+        const results = await searchLocation(q);
+        locSearchResults._lastResults = results || [];
+        renderSearchResults(results);
+      });
+
+      // press Enter in input triggers search
+      locSearchInput && locSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); locSearchBtn.click(); }
+      });
+
+      // My location button - uses browser geolocation
+// Find this block
+locMyLocationBtn && locMyLocationBtn.addEventListener('click', async () => {
+    if (!navigator.geolocation) { alert('Geolocation is not available in your browser.'); return; }
+    locMyLocationBtn.disabled = true;
+    locMyLocationBtn.textContent = 'Locating…';
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        // ... rest of the function
+    }, (err) => {
+        // ... error handling
+    });
+});    })();
+
+    // ===========================
+    // Init on DOMContentLoaded
+    // ===========================
+    document.addEventListener('DOMContentLoaded', () => {
+        startBtn.disabled = !teamSelect.value;
+        stopBtn.disabled = true;
+        if (teamSelect.value) {
+            fetchAndPopulateRules(teamSelect.value).catch(()=>{});
+            updateAttendanceTables().catch(()=>{});
+            fetchFinalReport(getTodayDateString(), teamSelect.value).catch(()=>{});
+        }
+    });
+
+</script>
+{% endblock %}

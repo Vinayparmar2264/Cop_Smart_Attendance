@@ -1,0 +1,1333 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Your Teams</h1>
+        <div class="flex items-center gap-3">
+            <button id="view-cycles-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                View Leave Cycles
+            </button>
+            <button id="new-team-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                + Create New Team
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-6 bg-white p-4 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Left column: Global actions & calendar -->
+        <div class="col-span-2 space-y-6">
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Global Actions</h2>
+                <p class="text-sm text-gray-600 mb-4">Apply an action to all of your teams at once.</p>
+                <div class="flex items-end gap-4 flex-wrap">
+                    <div>
+                        <label for="global-leave-date-input" class="block text-sm font-medium text-gray-700">Mark Leave Day for All Teams</label>
+                        <input type="date" id="global-leave-date-input" class="mt-1 p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <button id="mark-global-leave-btn" class="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">Mark Leave for All</button>
+
+                    <div class="border-l pl-4 ml-2 border-gray-300">
+                        <label class="block text-sm font-medium text-gray-700">Cancel a Leave Day</label>
+                        <button id="open-delete-global-leave-modal-btn" class="mt-1 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Delete Leave for All</button>
+                    </div>
+
+                    <div class="border-l pl-4 ml-2 border-gray-300">
+                        <label class="block text-sm font-medium text-gray-700">Create Leave Cycle</label>
+                        <button id="open-create-cycle-btn" class="mt-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">Create Cycle</button>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+
+
+            <!-- Leader: Leave Requests button (place near Global Actions header) -->
+<div class="relative inline-block">
+  <button id="open-leave-requests-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+    Leave Requests <span id="pending-count-badge" class="ml-2 inline-block bg-white text-red-600 font-semibold px-2 py-0.5 rounded-full text-sm">0</span>
+  </button>
+</div>
+
+<!-- Modal: Leave Requests -->
+<div id="leave-requests-modal" class="hidden fixed z-40 inset-0 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4">
+    <div class="fixed inset-0 bg-black opacity-50"></div>
+    <div class="relative bg-white rounded-lg shadow-lg w-full max-w-3xl z-50 p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-semibold">Pending Leave Requests</h3>
+        <button id="close-leave-requests-modal" class="text-2xl font-bold text-gray-400 hover:text-gray-700">&times;</button>
+      </div>
+      <div id="leave-requests-list" class="space-y-3 max-h-64 overflow-y-auto p-1">
+        <!-- Requests inserted here by JS -->
+        <div class="text-gray-500 text-sm">Loading...</div>
+      </div>
+      <div class="mt-4 text-right">
+        <button id="refresh-leave-requests-btn" class="px-4 py-2 bg-gray-100 rounded-md mr-2">Refresh</button>
+        <button id="close-leave-requests-bottom" class="px-4 py-2 bg-blue-600 text-white rounded-md">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+            <!-- Calendar Panel -->
+            <div id="calendar-panel" class="bg-white p-4 rounded-lg shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <button id="prev-month" class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200">‹</button>
+                        <div class="text-lg font-semibold" id="calendar-month-year">Month Year</div>
+                        <button id="next-month" class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200">›</button>
+                    </div>
+                    <div>
+                        <button id="today-btn" class="px-3 py-1 rounded bg-blue-100 hover:bg-blue-200">Today</button>
+                    </div>
+                </div>
+
+                <div id="calendar" class="grid grid-cols-7 gap-1 text-sm select-none">
+                    <!-- Weekday headers -->
+                    <div class="font-semibold text-center py-1">Sun</div>
+                    <div class="font-semibold text-center py-1">Mon</div>
+                    <div class="font-semibold text-center py-1">Tue</div>
+                    <div class="font-semibold text-center py-1">Wed</div>
+                    <div class="font-semibold text-center py-1">Thu</div>
+                    <div class="font-semibold text-center py-1">Fri</div>
+                    <div class="font-semibold text-center py-1">Sat</div>
+                    <!-- Dates will be injected here -->
+                </div>
+                <p class="text-xs text-gray-500 mt-2">🌳 - Leave day (single icon even if multiple teams)</p>
+            </div>
+        </div>
+
+        <!-- Right column: Quick actions & team links -->
+        <div class="bg-white p-4 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-800">Quick Actions</h3>
+            <div class="mt-3 space-y-3">
+                <a href="{{ url_for('add_member_page') }}" class="w-full block text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300">
+                    <span class="text-xl mr-2">+</span> Add New Member
+                </a>
+                <a href="{{ url_for('mark_attendance') }}" class="w-full block text-center bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition duration-300">
+                    Mark Attendance
+                </a>
+            </div>
+
+            <div class="mt-6">
+                <h4 class="font-semibold text-gray-700">Teams</h4>
+                <div class="mt-2 grid gap-2">
+                    {% for team in teams %}
+                    <button data-team-name="{{ team }}" class="team-details-btn w-full text-left bg-white p-3 rounded-lg shadow-sm hover:shadow-md hover:bg-gray-50 transition">
+                        <div class="flex justify-between items-center">
+                            <div><strong>{{ team }}</strong><div class="text-xs text-gray-500">Click to view members</div></div>
+                            <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                    </button>
+                    {% else %}
+                    <div class="bg-white p-4 rounded-lg shadow-md col-span-full text-center">
+                        <p class="text-gray-500">You haven't created any teams yet. Click 'Create New Team' to start.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team grid (same as before) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {% for team in teams %}
+        <button data-team-name="{{ team }}" class="team-details-btn bg-white p-6 rounded-lg shadow-md text-left hover:shadow-lg hover:bg-gray-50 transition">
+            <h3 class="text-lg font-semibold text-gray-800">{{ team }}</h3>
+            <p class="text-sm text-gray-500 mt-2">Click to view members</p>
+        </button>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create New Team Modal -->
+<div id="new-team-modal" class="hidden fixed z-40 inset-0 overflow-y-auto">
+     <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full relative z-50">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Create a New Team</h3>
+                <input type="text" id="new-team-name" class="w-full p-2 mt-2 border border-gray-300 rounded-lg" placeholder="Enter unique team name">
+                <p id="new-team-modal-status" class="text-sm text-red-600 mt-1"></p>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="save-team-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto">Save</button>
+                <button type="button" id="cancel-team-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Details Modal (preserved) -->
+<div id="team-details-modal" class="hidden fixed z-30 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-7xl sm:w-full relative z-40">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl leading-6 font-medium text-gray-900" id="details-modal-title">Team Details</h3>
+                    <button id="close-details-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+
+                <div class="mt-4 p-4 border rounded-lg bg-gray-50">
+                    <h4 class="font-semibold text-gray-700">Team Actions</h4>
+                    <div class="flex items-end gap-4 mt-2 flex-wrap">
+                        <div>
+                            <label for="leave-date-input" class="block text-sm font-medium text-gray-600">Mark Team Leave Day</label>
+                            <input type="date" id="leave-date-input" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <button id="mark-leave-btn" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600">Mark as Leave</button>
+
+                        <div class="border-l pl-4 ml-2 border-gray-300">
+                            <label class="block text-sm font-medium text-gray-600">Cancel a Team Leave</label>
+                            <button id="open-delete-team-leave-modal-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Delete Leave Day</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <input type="text" id="member-search" class="w-full p-2 mb-4 border border-gray-300 rounded-lg" placeholder="Search by name or enrollment ID...">
+                </div>
+                <div class="overflow-auto max-h-96">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enrollment ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendance % (Month/Year)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Left</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-members-table" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Global Leave Modal (preserved) -->
+<div id="delete-global-leave-modal" class="hidden fixed z-40 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full relative z-50">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Cancel Global Leave Day</h3>
+                    <button id="close-delete-global-leave-modal-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="mt-4 overflow-auto max-h-80">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="global-leaves-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Team Leave Modal (preserved) -->
+<div id="delete-team-leave-modal" class="hidden fixed z-40 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full relative z-50">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="delete-team-leave-modal-title">Cancel Team Leave Day</h3>
+                    <button id="close-delete-team-leave-modal-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="mt-4 overflow-auto max-h-80">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-leaves-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar date modal -->
+<div id="calendar-date-modal" class="hidden fixed z-50 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-black opacity-50"></div>
+        <div class="bg-white rounded-lg shadow-xl sm:max-w-xl sm:w-full relative z-60 p-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 id="calendar-date-modal-title" class="text-lg font-semibold">Date</h3>
+                <button id="close-calendar-date-modal" class="text-gray-600 hover:text-gray-900">&times;</button>
+            </div>
+            <div id="calendar-date-modal-body" class="space-y-3">
+                <!-- dynamically filled -->
+            </div>
+            <div class="flex justify-end gap-2 mt-3">
+                <button id="close-calendar-date-modal-bottom" class="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Cycle Modal -->
+<div id="create-cycle-modal" class="hidden fixed z-50 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-black opacity-40"></div>
+        <div class="bg-white rounded-lg shadow-xl sm:max-w-2xl sm:w-full relative z-60 p-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 id="create-cycle-modal-title" class="text-lg font-semibold">Create Leave Cycle</h3>
+                <button id="close-create-cycle-modal" class="text-gray-600 hover:text-gray-900">&times;</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium">Cycle Name</label>
+                    <input type="text" id="cycle-name" class="w-full mt-1 p-2 border rounded" placeholder="Descriptive name (optional)">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Scope</label>
+                    <div class="flex gap-3 mt-1">
+                        <label><input type="radio" name="cycle-scope" value="global" checked> Global</label>
+                        <label><input type="radio" name="cycle-scope" value="team"> Specific Team</label>
+                        <select id="cycle-team-select" class="hidden p-2 border rounded">
+                            <option value="">-- Select Team --</option>
+                            {% for team in teams %}
+                            <option value="{{ team }}">{{ team }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Type</label>
+                    <div class="flex gap-3 mt-1">
+                        <label><input type="radio" name="cycle-type" value="weekly" checked> Weekly</label>
+                        <label><input type="radio" name="cycle-type" value="manual"> Manual (every date in period)</label>
+                    </div>
+                </div>
+
+                <!-- weekly options -->
+                <div id="weekly-options" class="space-y-2">
+                    <div>
+                        <label class="text-sm font-medium">Weekly mode</label>
+                        <div class="flex gap-3 mt-1">
+                            <label><input type="radio" name="weekly-mode" value="by-weekday" checked> Choose Weekdays</label>
+                            <label><input type="radio" name="weekly-mode" value="by-monthday"> Choose Month Dates (repeat monthly)</label>
+                        </div>
+                    </div>
+
+                    <div id="by-weekday-picker" class="mt-1">
+                        <label class="text-sm">Pick weekdays</label>
+                        <div class="grid grid-cols-7 gap-1 mt-2">
+                            <label><input type="checkbox" value="Sun" class="weekday-checkbox"> Sun</label>
+                            <label><input type="checkbox" value="Mon" class="weekday-checkbox"> Mon</label>
+                            <label><input type="checkbox" value="Tue" class="weekday-checkbox"> Tue</label>
+                            <label><input type="checkbox" value="Wed" class="weekday-checkbox"> Wed</label>
+                            <label><input type="checkbox" value="Thu" class="weekday-checkbox"> Thu</label>
+                            <label><input type="checkbox" value="Fri" class="weekday-checkbox"> Fri</label>
+                            <label><input type="checkbox" value="Sat" class="weekday-checkbox"> Sat</label>
+                        </div>
+                    </div>
+
+                    <div id="by-monthday-picker" class="hidden">
+                        <label class="text-sm">Month date(s) (comma separated)</label>
+                        <input id="monthday-input" class="w-full mt-1 p-2 border rounded" placeholder="e.g. 1,15,28">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Start Date</label>
+                    <input type="date" id="cycle-start-date" class="w-full mt-1 p-2 border rounded">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">End Date</label>
+                    <input type="date" id="cycle-end-date" class="w-full mt-1 p-2 border rounded">
+                </div>
+
+                <p id="create-cycle-status" class="text-sm text-red-600"></p>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button id="save-cycle-btn" class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">Save Cycle</button>
+                <button id="update-cycle-btn" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 hidden">Update Cycle</button>
+                <button id="cancel-create-cycle-btn" class="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View cycles modal -->
+<div id="view-cycles-modal" class="hidden fixed z-50 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="fixed inset-0 bg-black opacity-40"></div>
+        <div class="bg-white rounded-lg shadow-xl sm:max-w-3xl sm:w-full relative z-60 p-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-semibold">Leave Cycles</h3>
+                <button id="close-view-cycles" class="text-gray-600 hover:text-gray-900">&times;</button>
+            </div>
+            <div id="cycles-list" class="space-y-2 max-h-96 overflow-auto">
+                <!-- cycles will be injected here -->
+            </div>
+            <div class="flex justify-end gap-2 mt-3">
+                <button id="close-view-cycles-bottom" class="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ========== Helper utilities ==========
+    function el(id){ return document.getElementById(id); }
+    function q(sel){ return document.querySelector(sel); }
+    function qa(sel){ return document.querySelectorAll(sel); }
+    function show(node){ node.classList.remove('hidden'); }
+    function hide(node){ node.classList.add('hidden'); }
+
+// Use local date parts to build YYYY-MM-DD to avoid timezone shifts from toISOString()
+function formatLocalDate(d) {
+    if (!(d instanceof Date)) d = new Date(d);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0'); // month is 0-indexed
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+
+    // Keep track of current calendar month/year
+    let viewYear = (new Date()).getFullYear();
+    let viewMonth = (new Date()).getMonth() + 1; // 1-based month for easier requests
+    const calendarContainer = el('calendar');
+
+    // ========== Re-used selectors & existing logic ==========
+    const newTeamBtn = el('new-team-btn');
+    const newTeamModal = el('new-team-modal');
+    const cancelNewTeamBtn = el('cancel-team-btn');
+    const saveTeamBtn = el('save-team-btn');
+    const teamNameInput = el('new-team-name');
+    const newTeamModalStatus = el('new-team-modal-status');
+    const globalLeaveDateInput = el('global-leave-date-input');
+    const markGlobalLeaveBtn = el('mark-global-leave-btn');
+
+    newTeamBtn.addEventListener('click', () => { show(newTeamModal); teamNameInput.focus(); });
+    cancelNewTeamBtn.addEventListener('click', () => { hide(newTeamModal); });
+    saveTeamBtn.addEventListener('click', async () => {
+        const teamName = teamNameInput.value.trim();
+        if (!teamName) { newTeamModalStatus.textContent = 'Team name cannot be empty.'; return; }
+        const response = await fetch('/api/create_team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_name: teamName })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            alert(result.message);
+            window.location.reload();
+        } else {
+            newTeamModalStatus.textContent = result.message;
+        }
+    });
+
+    markGlobalLeaveBtn.addEventListener('click', async () => {
+        const date = globalLeaveDateInput.value;
+        if (!date) {
+            alert('Please select a date to mark as a leave day for all teams.');
+            return;
+        }
+        if (confirm(`Are you sure you want to mark ${date} as a leave day for ALL of your teams?`)) {
+            const response = await fetch('/api/mark_leave_for_all_teams', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: date })
+            });
+            const result = await response.json();
+            alert(result.message);
+            await refreshCalendar();
+            await refreshDeleteLists();
+        }
+    });
+
+    // ========== Team details modal logic (preserved) ==========
+    const detailsModal = el('team-details-modal');
+    const detailsModalTitle = el('details-modal-title');
+    const closeDetailsBtn = el('close-details-btn');
+    const membersTableBody = el('team-members-table');
+    const memberSearchInput = el('member-search');
+    const teamButtons = document.querySelectorAll('.team-details-btn');
+
+    let currentTeamForModal = null;
+
+    closeDetailsBtn.addEventListener('click', () => { hide(detailsModal); });
+
+    teamButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const teamName = button.dataset.teamName;
+            openDetailsModal(teamName);
+        });
+    });
+
+    async function openDetailsModal(teamName) {
+        currentTeamForModal = teamName;
+        detailsModalTitle.textContent = `${teamName} - Member Details`;
+        membersTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-4">Loading...</td></tr>';
+        show(detailsModal);
+        memberSearchInput.value = '';
+
+        const response = await fetch(`/api/get_team_details/${encodeURIComponent(teamName)}`);
+        const data = await response.json();
+        renderMembersTable(data.members, teamName);
+    }
+
+    detailsModal.addEventListener('click', async (event) => {
+        const button = event.target;
+
+        if (button.id === 'mark-leave-btn') {
+            const leaveDateInput = el('leave-date-input');
+            const date = leaveDateInput.value;
+            if (!date) { alert('Please select a date to mark as a leave day.'); return; }
+            if (!currentTeamForModal) { alert('Error: Could not determine the current team.'); return; }
+            const response = await fetch('/api/mark_leave_day', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team_name: currentTeamForModal, date: date })
+            });
+            const result = await response.json();
+            alert(result.message);
+            await openDetailsModal(currentTeamForModal); // refresh
+            await refreshCalendar();
+            await refreshDeleteLists();
+        }
+
+        if (button.id === 'open-delete-team-leave-modal-btn') {
+            openTeamLeaveDeleteModal(currentTeamForModal);
+        }
+
+        const enrollmentId = button.dataset.id;
+        const teamName = button.dataset.team;
+
+        if (button.classList.contains('remove-member-btn')) {
+            if (confirm(`Are you sure you want to mark member ${enrollmentId} as inactive?`)) {
+                const response = await fetch('/api/remove_member', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+
+        if (button.classList.contains('reactivate-member-btn')) {
+             if (confirm(`Are you sure you want to reactivate member ${enrollmentId}?`)) {
+                const response = await fetch('/api/reactivate_member', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+
+        if (button.classList.contains('delete-member-btn')) {
+            if (confirm(`WARNING:\nAre you sure you want to PERMANENTLY DELETE all image data for member ${enrollmentId}?\nThis action cannot be undone, but their attendance history will be kept.`)) {
+                const response = await fetch('/api/delete_member_permanently', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: teamName, enrollment_id: enrollmentId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') await openDetailsModal(teamName);
+            }
+        }
+    });
+
+    function renderMembersTable(members, teamName) {
+        membersTableBody.innerHTML = '';
+        if (members.length === 0) {
+            membersTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-4">This team has no members.</td></tr>';
+            return;
+        }
+        members.forEach(member => {
+            const statusClass = member.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+            let actionButtonsHTML = '';
+
+            const detailsLink = `<a href="/leader/view_member_details/${encodeURIComponent(teamName)}/${member.enrollment_id}" class="text-blue-600 hover:text-blue-900" target="_blank">Details</a>`;
+
+            if (member.status === 'active') {
+                actionButtonsHTML = `${detailsLink} <button class="remove-member-btn text-yellow-600 hover:text-yellow-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Set Inactive</button> <button class="delete-member-btn text-red-600 hover:text-red-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Delete</button>`;
+            } else if (member.status === 'inactive') {
+                actionButtonsHTML = `${detailsLink} <button class="reactivate-member-btn text-green-600 hover:text-green-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Reactivate</button> <button class="delete-member-btn text-red-600 hover:text-red-900 ml-4" data-id="${member.enrollment_id}" data-team="${teamName}">Delete</button>`;
+            } else { actionButtonsHTML = detailsLink; }
+
+            const row = document.createElement('tr');
+            row.dataset.searchableContent = `${member.name.toLowerCase()} ${member.enrollment_id}`;
+            row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${member.name}</td> <td class="px-6 py-4 whitespace-nowrap">${member.enrollment_id}</td> <td class="px-6 py-4 whitespace-nowrap">${member.contact}</td> <td class="px-6 py-4 whitespace-nowrap stats-cell" id="stats-${member.enrollment_id}">Loading...</td> <td class="px-6 py-4 whitespace-nowrap">${member.enrollment_date}</td> <td class="px-6 py-4 whitespace-nowrap">${member.leaving_date || 'N/A'}</td> <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">${member.status}</span></td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${actionButtonsHTML}</td>`;
+            membersTableBody.appendChild(row);
+            fetchAndDisplayStats(teamName, member.enrollment_id);
+        });
+    }
+
+    async function fetchAndDisplayStats(teamName, enrollmentId) {
+        const statsCell = el(`stats-${enrollmentId}`);
+        try {
+            const response = await fetch(`/api/get_member_stats/${encodeURIComponent(teamName)}/${enrollmentId}`);
+            const stats = await response.json();
+            if (stats.error) { statsCell.textContent = 'Error'; }
+            else { statsCell.innerHTML = `<span title="Current Month">${stats.month_percent}</span> / <span title="Current Year">${stats.year_percent}</span>`; }
+        } catch (e) { statsCell.textContent = 'N/A'; }
+    }
+
+    // ========== Delete leave modals (preserved but connected) ==========
+    const deleteGlobalLeaveModal = el('delete-global-leave-modal');
+    const openGlobalLeaveBtn = el('open-delete-global-leave-modal-btn');
+    const closeDeleteGlobalLeaveBtn = el('close-delete-global-leave-modal-btn');
+    const globalLeavesTableBody = el('global-leaves-table-body');
+
+    openGlobalLeaveBtn.addEventListener('click', async () => {
+        // gather union of dates across all teams for this leader (using first team to fetch is insufficient)
+        // We'll compute by pulling calendar events for the current month range and past - but simpler: scan all teams via endpoint get_team_leave_dates for each.
+        globalLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">Loading...</td></tr>';
+        const teams = Array.from(document.querySelectorAll('.team-details-btn')).map(b => b.dataset.teamName).filter(Boolean);
+        const dateSet = new Set();
+        for (let t of teams) {
+            try {
+                const res = await fetch(`/api/get_team_leave_dates/${encodeURIComponent(t)}`);
+                const arr = await res.json();
+                arr.forEach(d => dateSet.add(d));
+            } catch (e) { continue; }
+        }
+        const dates = Array.from(dateSet).sort();
+        globalLeavesTableBody.innerHTML = '';
+        if (dates.length === 0) {
+            globalLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">No global leave days have been marked.</td></tr>';
+        } else {
+            dates.forEach(date => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${date}</td> <td class="px-6 py-4 whitespace-nowrap"><button data-date="${date}" class="delete-global-leave-date-btn text-red-600 hover:text-red-900">Delete</button></td>`;
+                globalLeavesTableBody.appendChild(row);
+            });
+        }
+        show(deleteGlobalLeaveModal);
+    });
+
+    closeDeleteGlobalLeaveBtn.addEventListener('click', () => { hide(deleteGlobalLeaveModal); });
+
+    deleteGlobalLeaveModal.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('delete-global-leave-date-btn')) {
+            const date = event.target.dataset.date;
+            if (confirm(`Are you sure you want to delete the global leave day on ${date}? This will apply to ALL teams.`)) {
+                const response = await fetch('/api/delete_leave_for_all_teams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date: date })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success') {
+                    event.target.closest('tr').remove();
+                    await refreshCalendar();
+                    await refreshDeleteLists();
+                }
+            }
+        }
+    });
+
+    // Team-specific leave deletion
+    const deleteTeamLeaveModal = el('delete-team-leave-modal');
+    const closeDeleteTeamLeaveBtn = el('close-delete-team-leave-modal-btn');
+    const teamLeavesTableBody = el('team-leaves-table-body');
+    const deleteTeamLeaveModalTitle = el('delete-team-leave-modal-title');
+
+    async function openTeamLeaveDeleteModal(teamName) {
+        if (!teamName) return;
+        deleteTeamLeaveModalTitle.textContent = `Cancel Leave Day for ${teamName}`;
+        teamLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">Loading...</td></tr>';
+        const response = await fetch(`/api/get_team_leave_dates/${encodeURIComponent(teamName)}`);
+        const leaveDates = await response.json();
+
+        teamLeavesTableBody.innerHTML = '';
+        if (leaveDates.length === 0) {
+            teamLeavesTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4">This team has no marked leave days.</td></tr>';
+        } else {
+            leaveDates.forEach(date => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${date}</td> <td class="px-6 py-4 whitespace-nowrap"><button data-date="${date}" class="delete-team-leave-date-btn text-red-600 hover:text-red-900">Delete</button></td>`;
+                teamLeavesTableBody.appendChild(row);
+            });
+        }
+        show(deleteTeamLeaveModal);
+    }
+
+    closeDeleteTeamLeaveBtn.addEventListener('click', () => { hide(deleteTeamLeaveModal); });
+
+    deleteTeamLeaveModal.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('delete-team-leave-date-btn')) {
+            const date = event.target.dataset.date;
+            if (!currentTeamForModal) { alert('No team selected'); return; }
+            if (confirm(`Are you sure you want to delete the leave day on ${date} for team ${currentTeamForModal}?`)) {
+                const response = await fetch('/api/delete_leave_day', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: currentTeamForModal, date: date })
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.status === 'success' || result.status === 'info') {
+                    event.target.closest('tr').remove();
+                    await refreshCalendar(); // show cancellation note & not remove tree if other teams exist
+                    await refreshDeleteLists();
+                }
+            }
+        }
+    });
+
+
+
+
+
+
+
+
+  // Leader dashboard: pending leave requests badge & modal
+  async function fetchPendingCountAndUpdateBadge() {
+    try {
+      const resp = await fetch('/api/get_pending_leave_count');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const badge = document.getElementById('pending-count-badge');
+      badge.textContent = (data.pending || 0);
+      // simple color change if pending>0
+      if ((data.pending || 0) > 0) {
+        badge.classList.remove('bg-white','text-red-600');
+        badge.classList.add('bg-white','text-red-600','font-bold');
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending count', e);
+    }
+  }
+
+  async function fetchPendingRequests() {
+    const listEl = document.getElementById('leave-requests-list');
+    listEl.innerHTML = '<div class="text-sm text-gray-500 p-2">Loading...</div>';
+    try {
+      const resp = await fetch('/api/get_leave_requests?status=pending');
+      if (!resp.ok) { listEl.innerHTML = '<div class="text-red-500 p-2">Failed to load.</div>'; return; }
+      const requests = await resp.json();
+      if (!requests || requests.length === 0) {
+        listEl.innerHTML = '<div class="text-gray-500 p-2">No pending requests.</div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      requests.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-gray-50 border rounded-md flex items-start justify-between gap-3';
+        item.innerHTML = `
+          <div class="flex-1">
+            <div class="text-sm font-semibold">${r.member_name || r.enrollment_id} <span class="text-xs text-gray-500">(${r.enrollment_id})</span></div>
+            <div class="text-xs text-gray-600 mt-1">Date: <strong>${r.date}</strong></div>
+            <div class="text-xs text-gray-600 mt-1">Note: ${r.note ? r.note : '<em class="text-gray-400">No note</em>'}</div>
+            <div class="text-xs text-gray-400 mt-1">Requested: ${r.created_at ? (new Date(r.created_at)).toLocaleString() : ''}</div>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <button data-id="${r.id}" data-action="accept" class="accept-req-btn px-3 py-1 bg-green-500 text-white rounded-sm text-sm hover:bg-green-600">Accept</button>
+            <button data-id="${r.id}" data-action="reject" class="reject-req-btn px-3 py-1 bg-red-500 text-white rounded-sm text-sm hover:bg-red-600">Reject</button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      // attach handlers
+      listEl.querySelectorAll('.accept-req-btn, .reject-req-btn').forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.action;
+          const reply = prompt(`Optional reply note for ${action === 'accept' ? 'acceptance' : 'rejection'} (leave blank if none):`) || '';
+          if (!confirm(`Are you sure you want to ${action} this leave request?`)) return;
+          try {
+            const res = await fetch('/api/respond_leave_request', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ id: id, action: action, reply_note: reply })
+            });
+            const result = await res.json();
+            alert(result.message || 'Done.');
+            await fetchPendingCountAndUpdateBadge();
+            await fetchPendingRequests();
+            // refresh calendar or other UI hooks if needed: try triggering an event
+            try { document.dispatchEvent(new CustomEvent('leaveRequestsChanged')); } catch(e) {}
+          } catch (e) {
+            alert('Failed to respond to request.');
+            console.error(e);
+          }
+        });
+      });
+
+    } catch (e) {
+      console.error('Failed to fetch pending requests', e);
+      listEl.innerHTML = '<div class="text-red-500 p-2">Failed to load pending requests.</div>';
+    }
+  }
+
+  // modal open/close
+  const openBtn = document.getElementById('open-leave-requests-btn');
+  const modal = document.getElementById('leave-requests-modal');
+  const closeBtn = document.getElementById('close-leave-requests-modal');
+  const closeBottom = document.getElementById('close-leave-requests-bottom');
+  const refreshBtn = document.getElementById('refresh-leave-requests-btn');
+  openBtn && openBtn.addEventListener('click', async () => {
+    modal.classList.remove('hidden');
+    await fetchPendingRequests();
+  });
+  closeBtn && closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+  closeBottom && closeBottom.addEventListener('click', () => modal.classList.add('hidden'));
+  refreshBtn && refreshBtn.addEventListener('click', () => fetchPendingRequests());
+
+  // initial badge update and periodic refresh
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchPendingCountAndUpdateBadge();
+    setInterval(fetchPendingCountAndUpdateBadge, 30 * 1000); // every 30s
+  });
+
+  // listen for external events to refresh badge (e.g., after marking leave from another modal)
+  document.addEventListener('leaveRequestsChanged', () => {
+    fetchPendingCountAndUpdateBadge();
+  });
+
+
+
+
+
+
+
+
+
+
+
+    // ========== Calendar rendering logic ==========
+    function clearCalendarDates() {
+        // remove existing date cells (keep weekday headers)
+        // weekday headers are first 7 nodes inside calendar container, so remove others before re-rendering
+        const children = Array.from(calendarContainer.children);
+        // children[0..6] are weekday headers
+        children.slice(7).forEach(n => n.remove());
+    }
+
+    function makeDateCell(dateObj, isCurrentMonth, isToday, displayText, hasLeave, cancellations) {
+        const container = document.createElement('div');
+        container.className = `p-2 min-h-[80px] border rounded-md relative transition`;
+        if (!isCurrentMonth) container.classList.add('opacity-40');
+        // background color palette (cyclic by date)
+        const palette = [
+            'bg-gradient-to-br from-green-50 to-green-100',
+            'bg-gradient-to-br from-indigo-50 to-indigo-100',
+            'bg-gradient-to-br from-yellow-50 to-yellow-100',
+            'bg-gradient-to-br from-pink-50 to-pink-100',
+            'bg-gradient-to-br from-blue-50 to-blue-100',
+            'bg-gradient-to-br from-purple-50 to-purple-100'
+        ];
+        const idx = dateObj.getDate() % palette.length;
+        container.classList.add(...palette[idx].split(' '));
+
+        if (isToday) {
+            container.classList.add('ring-2', 'ring-offset-2', 'ring-blue-300');
+        }
+
+        const dayNum = document.createElement('div');
+        dayNum.className = 'text-xs font-semibold text-gray-700';
+        dayNum.textContent = displayText;
+        container.appendChild(dayNum);
+
+        // If there is at least one leave on this date, show a single tree symbol
+        if (hasLeave) {
+            const tree = document.createElement('div');
+            tree.className = 'absolute left-2 bottom-2 text-xl';
+            tree.textContent = '🌳';
+            container.appendChild(tree);
+        }
+
+        // if cancellations exist for this date (array of {team, note}), show a small list
+        if (cancellations && cancellations.length > 0) {
+            const note = document.createElement('div');
+            note.className = 'absolute right-2 bottom-2 text-xs text-red-700 bg-red-50 px-1 rounded';
+            note.textContent = cancellations.map(c => c.team).join(', ') + ' canceled';
+            container.appendChild(note);
+        }
+
+        // attach click handler
+        container.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCalendarDateModal(dateObj);
+        });
+
+        return container;
+    }
+
+    async function refreshCalendar() {
+        clearCalendarDates();
+        // fetch calendar events for viewMonth/viewYear
+        const resp = await fetch(`/api/get_calendar_events?year=${viewYear}&month=${viewMonth}`);
+        const events = await resp.json(); // [{date, items: [{team, title}], ...}]
+        const eventsByDate = {};
+        events.forEach(ev => {
+            eventsByDate[ev.date] = ev.items || [];
+        });
+        // fetch cancellations
+        const cancResp = await fetch(`/api/get_leave_cancellations`);
+        const cancellations = await cancResp.json(); // [{date, team, note}]
+        const cancByDate = {};
+        cancellations.forEach(c => {
+            cancByDate[c.date] = cancByDate[c.date] || [];
+            cancByDate[c.date].push({ team: c.team, note: c.note });
+        });
+
+        // build a month grid
+        const firstDay = new Date(viewYear, viewMonth - 1, 1);
+        const firstWeekday = firstDay.getDay(); // 0..6 (Sun..Sat)
+        const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+        // find previous month's days to fill leading blanks
+        const prevMonth = viewMonth == 1 ? 12 : viewMonth - 1;
+        const prevYear = viewMonth == 1 ? viewYear - 1 : viewYear;
+        const daysInPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+
+        // total cells to render = 42 (6 rows x 7)
+        for (let cell = 0; cell < 42; cell++) {
+            let cellDate;
+            let isCurrentMonth = true;
+            if (cell < firstWeekday) {
+                // previous month
+                const day = daysInPrevMonth - (firstWeekday - cell - 1);
+                cellDate = new Date(prevYear, prevMonth - 1, day);
+                isCurrentMonth = false;
+            } else {
+                const d = cell - firstWeekday + 1;
+                if (d > daysInMonth) {
+                    // next month
+                    const day = d - daysInMonth;
+                    const nextMonth = viewMonth == 12 ? 1 : viewMonth + 1;
+                    const nextYear = viewMonth == 12 ? viewYear + 1 : viewYear;
+                    cellDate = new Date(nextYear, nextMonth - 1, day);
+                    isCurrentMonth = false;
+                } else {
+                    cellDate = new Date(viewYear, viewMonth - 1, d);
+                    isCurrentMonth = true;
+                }
+            }
+
+            const iso = formatLocalDate(cellDate);
+
+            const hasLeave = !!eventsByDate[iso] && eventsByDate[iso].length > 0;
+
+            const cancels = cancByDate[iso] || [];
+
+            const isToday = formatLocalDate(new Date()) === iso;
+
+            const cellEl = makeDateCell(cellDate, isCurrentMonth, isToday, cellDate.getDate(), hasLeave, cancels);
+            calendarContainer.appendChild(cellEl);
+        }
+
+        el('calendar-month-year').textContent = `${cellMonthName(viewMonth)} ${viewYear}`;
+    }
+
+    function cellMonthName(m) {
+        const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        return names[m-1];
+    }
+
+    el('prev-month').addEventListener('click', () => {
+        viewMonth--;
+        if (viewMonth < 1) { viewMonth = 12; viewYear--; }
+        refreshCalendar();
+        refreshDeleteLists();
+    });
+    el('next-month').addEventListener('click', () => {
+        viewMonth++;
+        if (viewMonth > 12) { viewMonth = 1; viewYear++; }
+        refreshCalendar();
+        refreshDeleteLists();
+    });
+    el('today-btn').addEventListener('click', () => {
+        const now = new Date();
+        viewMonth = now.getMonth()+1; viewYear = now.getFullYear();
+        refreshCalendar();
+        refreshDeleteLists();
+    });
+
+    // On load
+    document.addEventListener('DOMContentLoaded', async () => {
+        // create weekday header placeholders if not present (they are already in markup)
+        // initial calendar render
+        // ensure calendar container starts clean (remove any leftover generated cells)
+        const existingChildren = Array.from(calendarContainer.children);
+        if (existingChildren.length <= 7) {
+            // no date cells yet
+        } else {
+            clearCalendarDates();
+        }
+        await refreshCalendar();
+        await refreshDeleteLists();
+    });
+
+    // ========== Calendar date modal ==========
+    const calendarDateModal = el('calendar-date-modal');
+    const calendarDateModalTitle = el('calendar-date-modal-title');
+    const calendarDateModalBody = el('calendar-date-modal-body');
+    el('close-calendar-date-modal').addEventListener('click', () => hide(calendarDateModal));
+    el('close-calendar-date-modal-bottom').addEventListener('click', () => hide(calendarDateModal));
+
+    async function openCalendarDateModal(dateObj) {
+
+        const iso = formatLocalDate(dateObj);
+
+        calendarDateModalTitle.textContent = `Date: ${iso}`;
+        calendarDateModalBody.innerHTML = '<div>Loading...</div>';
+        show(calendarDateModal);
+
+        // fetch teams that have leave on this date by scanning teams (we can GET calendar events for the month and filter)
+        const resp = await fetch(`/api/get_calendar_events?year=${dateObj.getFullYear()}&month=${dateObj.getMonth()+1}`);
+        const evs = await resp.json();
+        const ev = evs.find(x => x.date === iso);
+        const leaveItems = ev ? ev.items : [];
+
+        // fetch cancellations
+        const cancResp = await fetch(`/api/get_leave_cancellations`);
+        const cancAll = await cancResp.json();
+        const cancForDate = cancAll.filter(c => c.date === iso);
+
+        calendarDateModalBody.innerHTML = '';
+        if (leaveItems.length === 0) {
+            calendarDateModalBody.innerHTML = `<div class="text-sm text-gray-600">No leaves marked for ${iso}.</div>`;
+            return;
+        }
+
+        const list = document.createElement('div');
+        list.className = 'space-y-2';
+        leaveItems.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center p-2 border rounded';
+            row.innerHTML = `<div><strong>${item.team}</strong> <div class="text-xs text-gray-600">${item.title || ''}</div></div>`;
+            const btns = document.createElement('div');
+            // cancel for this team button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'px-2 py-1 rounded bg-red-500 text-white text-sm hover:bg-red-600';
+            cancelBtn.textContent = `Cancel for ${item.team}`;
+            cancelBtn.addEventListener('click', async () => {
+                if (!confirm(`Cancel leave on ${iso} for team ${item.team}?`)) return;
+                const res = await fetch('/api/delete_leave_day', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({team_name: item.team, date: iso})
+                });
+                const j = await res.json();
+                alert(j.message);
+                await refreshCalendar();
+                await refreshDeleteLists();
+                // show cancellation message in modal
+                const note = document.createElement('div');
+                note.className = 'text-xs text-red-600';
+                note.textContent = `Leave cancelled for ${item.team} on ${iso}.`;
+                calendarDateModalBody.appendChild(note);
+            });
+            btns.appendChild(cancelBtn);
+            row.appendChild(btns);
+            list.appendChild(row);
+        });
+        // Cancel for All button
+        const cancelAllRow = document.createElement('div');
+        cancelAllRow.className = 'mt-2 flex justify-end';
+        const cancelAllBtn = document.createElement('button');
+        cancelAllBtn.className = 'px-3 py-2 rounded bg-red-700 text-white hover:bg-red-800';
+        cancelAllBtn.textContent = 'Cancel Leave For All Teams (This date)';
+        cancelAllBtn.addEventListener('click', async () => {
+            if (!confirm(`Are you sure you want to cancel leave for ALL teams on ${iso}? This removes that date from all teams.`)) return;
+            const res = await fetch('/api/delete_leave_for_all_teams', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({date: iso})
+            });
+            const j = await res.json();
+            alert(j.message);
+            await refreshCalendar();
+            await refreshDeleteLists();
+            hide(calendarDateModal);
+        });
+        cancelAllRow.appendChild(cancelAllBtn);
+
+        calendarDateModalBody.appendChild(list);
+
+        if (cancForDate.length > 0) {
+            const cancDiv = document.createElement('div');
+            cancDiv.className = 'mt-3 p-2 bg-yellow-50 rounded border';
+            cancDiv.innerHTML = `<strong>Team-specific cancellations:</strong><ul class="list-disc ml-5 text-sm">` + cancForDate.map(c=>`<li>${c.team}: ${c.note || ''}</li>`).join('') + `</ul>`;
+            calendarDateModalBody.appendChild(cancDiv);
+        }
+
+        calendarDateModalBody.appendChild(cancelAllRow);
+    }
+
+    // ========== Leave cycles (create/edit/list/delete) ==========
+    const openCreateCycleBtn = el('open-create-cycle-btn');
+    const createCycleModal = el('create-cycle-modal');
+    const closeCreateCycleModal = el('close-create-cycle-modal');
+    const cancelCreateCycleBtn = el('cancel-create-cycle-btn');
+    const saveCycleBtn = el('save-cycle-btn');
+    const updateCycleBtn = el('update-cycle-btn');
+    const createCycleStatus = el('create-cycle-status');
+
+    const viewCyclesBtn = el('view-cycles-btn');
+    const viewCyclesModal = el('view-cycles-modal');
+    const closeViewCycles = el('close-view-cycles');
+    const cyclesList = el('cycles-list');
+
+    openCreateCycleBtn.addEventListener('click', () => {
+        el('create-cycle-modal-title').textContent = 'Create Leave Cycle';
+        show(createCycleModal);
+        // reset form
+        el('cycle-name').value = '';
+        document.querySelector('input[name="cycle-scope"][value="global"]').checked = true;
+        el('cycle-team-select').classList.add('hidden');
+        document.querySelector('input[name="cycle-type"][value="weekly"]').checked = true;
+        document.querySelector('input[name="weekly-mode"][value="by-weekday"]').checked = true;
+        el('by-weekday-picker').classList.remove('hidden');
+        el('by-monthday-picker').classList.add('hidden');
+        el('cycle-start-date').value = '';
+        el('cycle-end-date').value = '';
+        el('create-cycle-status').textContent = '';
+        show(saveCycleBtn); hide(updateCycleBtn);
+    });
+
+    closeCreateCycleModal.addEventListener('click', () => hide(createCycleModal));
+    cancelCreateCycleBtn.addEventListener('click', () => hide(createCycleModal));
+
+    // show team select if "team" scope
+    qa('input[name="cycle-scope"]').forEach(r => r.addEventListener('change', (e) => {
+        if (e.target.value === 'team') {
+            el('cycle-team-select').classList.remove('hidden');
+        } else {
+            el('cycle-team-select').classList.add('hidden');
+        }
+    }));
+
+    qa('input[name="cycle-type"]').forEach(r => r.addEventListener('change', (e) => {
+        if (e.target.value === 'weekly') {
+            el('weekly-options').classList.remove('hidden');
+        } else {
+            el('weekly-options').classList.add('hidden');
+        }
+    }));
+
+    qa('input[name="weekly-mode"]').forEach(r => r.addEventListener('change', (e) => {
+        if (e.target.value === 'by-weekday') {
+            el('by-weekday-picker').classList.remove('hidden');
+            el('by-monthday-picker').classList.add('hidden');
+        } else {
+            el('by-weekday-picker').classList.add('hidden');
+            el('by-monthday-picker').classList.remove('hidden');
+        }
+    }));
+
+    async function loadCyclesIntoModal() {
+        cyclesList.innerHTML = '<div class="p-4 text-center">Loading...</div>';
+        const res = await fetch('/api/get_leave_cycles');
+        const cycles = await res.json();
+        cyclesList.innerHTML = '';
+        if (!cycles || cycles.length === 0) {
+            cyclesList.innerHTML = '<div class="p-4 text-center text-gray-600">No leave cycles created.</div>';
+            return;
+        }
+        cycles.forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'p-3 border rounded flex justify-between items-start gap-3';
+            const left = document.createElement('div');
+            left.innerHTML = `<div class="font-semibold">${c.name || '(no name)'} <span class="text-xs text-gray-500">[${c.scope || c.scope || 'global'}]</span></div>
+                              <div class="text-sm text-gray-600">Type: ${c.type} ${c.weekly_mode ? '('+c.weekly_mode+')':''}</div>
+                              <div class="text-xs text-gray-500">From ${c.start_date} to ${c.end_date}</div>`;
+            const right = document.createElement('div');
+            right.className = 'flex flex-col gap-2';
+            const editBtn = document.createElement('button');
+            editBtn.className = 'px-3 py-1 rounded bg-blue-600 text-white text-sm';
+            editBtn.textContent = 'Edit';
+            editBtn.addEventListener('click', () => openEditCycle(c));
+            const delBtn = document.createElement('button');
+            delBtn.className = 'px-3 py-1 rounded bg-red-600 text-white text-sm';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', async () => {
+                if (!confirm(`Delete cycle "${c.name || c.id}" permanently? This will remove all generated leave dates for this cycle.`)) return;
+                const r = await fetch('/api/delete_leave_cycle', {
+                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: c.id})
+                });
+                const j = await r.json();
+                alert(j.message);
+                await loadCyclesIntoModal();
+                await refreshCalendar();
+                await refreshDeleteLists();
+            });
+            right.appendChild(editBtn);
+            right.appendChild(delBtn);
+            item.appendChild(left);
+            item.appendChild(right);
+            cyclesList.appendChild(item);
+        });
+    }
+
+    viewCyclesBtn.addEventListener('click', async () => {
+        show(viewCyclesModal);
+        await loadCyclesIntoModal();
+    });
+    closeViewCycles.addEventListener('click', () => hide(viewCyclesModal));
+    el('close-view-cycles-bottom').addEventListener('click', () => hide(viewCyclesModal));
+
+    function openEditCycle(cycle) {
+        // populate form for editing
+        el('create-cycle-modal-title').textContent = 'Edit Leave Cycle';
+        show(createCycleModal);
+        el('cycle-name').value = cycle.name || '';
+        if (cycle.scope === 'team') {
+            document.querySelector('input[name="cycle-scope"][value="team"]').checked = true;
+            el('cycle-team-select').classList.remove('hidden');
+            el('cycle-team-select').value = cycle.team_name || '';
+        } else {
+            document.querySelector('input[name="cycle-scope"][value="global"]').checked = true;
+            el('cycle-team-select').classList.add('hidden');
+        }
+        document.querySelector('input[name="cycle-type"][value="' + cycle.type + '"]').checked = true;
+        if (cycle.type === 'weekly') {
+            show(el('weekly-options'));
+            document.querySelector('input[name="weekly-mode"][value="' + (cycle.weekly_mode || 'by-weekday') + '"]').checked = true;
+            if ((cycle.weekly_mode || 'by-weekday') === 'by-weekday') {
+                el('by-weekday-picker').classList.remove('hidden'); el('by-monthday-picker').classList.add('hidden');
+                qa('.weekday-checkbox').forEach(cb => cb.checked = (cycle.days || []).includes(cb.value));
+            } else {
+                el('by-weekday-picker').classList.add('hidden'); el('by-monthday-picker').classList.remove('hidden');
+                el('monthday-input').value = (cycle.month_days || []).join(',');
+            }
+        } else {
+            el('weekly-options').classList.add('hidden');
+        }
+        el('cycle-start-date').value = cycle.start_date || '';
+        el('cycle-end-date').value = cycle.end_date || '';
+        el('create-cycle-status').textContent = '';
+        hide(saveCycleBtn); show(updateCycleBtn);
+
+        // attach update handler temporarily
+        updateCycleBtn.onclick = async () => {
+            const payload = collectCycleForm();
+            payload.id = cycle.id;
+            const r = await fetch('/api/edit_leave_cycle', {
+                method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+            });
+            const j = await r.json();
+            alert(j.message || 'Updated');
+            hide(createCycleModal);
+            await loadCyclesIntoModal();
+            await refreshCalendar();
+            await refreshDeleteLists();
+        };
+    }
+
+    function collectCycleForm() {
+        const name = el('cycle-name').value.trim();
+        const scope = document.querySelector('input[name="cycle-scope"]:checked').value;
+        const teamName = el('cycle-team-select').value || null;
+        const type = document.querySelector('input[name="cycle-type"]:checked').value;
+        const start_date = el('cycle-start-date').value;
+        const end_date = el('cycle-end-date').value;
+        const payload = { name:name, scope: scope, type: type, start_date: start_date, end_date: end_date };
+        if (scope === 'team') payload.team_name = teamName;
+        if (type === 'weekly') {
+            const weekly_mode = document.querySelector('input[name="weekly-mode"]:checked').value;
+            payload.weekly_mode = weekly_mode;
+            if (weekly_mode === 'by-weekday') {
+                const days = Array.from(qa('.weekday-checkbox')).filter(cb => cb.checked).map(cb => cb.value);
+                payload.days = days;
+            } else {
+                const md = el('monthday-input').value.split(',').map(s=>s.trim()).filter(Boolean);
+                payload.month_days = md;
+            }
+        }
+        return payload;
+    }
+
+    saveCycleBtn.addEventListener('click', async () => {
+        const payload = collectCycleForm();
+        if (!payload.start_date || !payload.end_date) { el('create-cycle-status').textContent = 'Start and end date required.'; return; }
+        // basic validation
+        if (new Date(payload.end_date) < new Date(payload.start_date)) { el('create-cycle-status').textContent = 'End date must be after start date.'; return; }
+        const res = await fetch('/api/create_leave_cycle', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        const j = await res.json();
+        if (j.status === 'success') {
+            alert('Cycle created.');
+            hide(createCycleModal);
+            await loadCyclesIntoModal();
+            await refreshCalendar();
+            await refreshDeleteLists();
+        } else {
+            el('create-cycle-status').textContent = j.message || 'Error creating cycle';
+        }
+    });
+
+    // ========== Refresh delete lists (for modals) ==========
+    async function refreshDeleteLists(){
+        // refresh global delete modal table if open
+        if (!el('delete-global-leave-modal').classList.contains('hidden')) {
+            openGlobalLeaveBtn.click(); // will refresh and show
+        }
+        // refresh team delete modal if open
+        if (!el('delete-team-leave-modal').classList.contains('hidden') && currentTeamForModal) {
+            await openTeamLeaveDeleteModal(currentTeamForModal);
+        }
+    }
+
+    // ========== Additional small fixes for modal click blocking issues ==========
+    // Prevent clicks on overlay from blocking modals by using stopPropagation on content containers
+    document.querySelectorAll('[id$="-modal"]').forEach(mod => {
+      mod.addEventListener('click', (e) => {
+        // if clicked on the modal's background, close only some modals where appropriate
+        // but avoid preventing clicks inside content area by checking target
+      });
+    });
+
+    // small safety: when user clicks outside of create-cycle-modal content but inside overlay, close
+    createCycleModal.addEventListener('click', (e) => {
+        if (e.target === createCycleModal) hide(createCycleModal);
+    });
+    viewCyclesModal.addEventListener('click', (e) => { if (e.target === viewCyclesModal) hide(viewCyclesModal); });
+    calendarDateModal.addEventListener('click', (e) => { if (e.target === calendarDateModal) hide(calendarDateModal); });
+
+    // ========== Initial load of cycles list (hidden) ==========
+    // Preload cycles in memory if you want (optional)
+</script>
+{% endblock %}

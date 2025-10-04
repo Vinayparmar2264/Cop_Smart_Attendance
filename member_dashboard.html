@@ -1,0 +1,238 @@
+{% extends "layout.html" %}
+{% block title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Welcome, {{ member.name }}!</h1>
+                <p class="text-gray-600">Enrollment ID: {{ member.enrollment_id }}</p>
+            </div>
+            <div class="mt-4 md:mt-0 md:text-right">
+                <p class="text-sm text-gray-500">Team: <span class="font-semibold">{{ member.team_name }}</span></p>
+                <p class="text-sm text-gray-500">Joined: <span class="font-semibold">{{ member.enrollment_date }}</span></p>
+                {% if member.leaving_date %}
+                <p class="text-sm text-red-500">Left: <span class="font-semibold">{{ member.leaving_date }}</span></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t flex flex-wrap items-center gap-4">
+             <a href="{{ url_for('member_marked_attendance') }}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition">
+                Mark My Attendance
+            </a>
+            <a href="{{ url_for('member_history') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
+                View Full History & Analysis
+            </a>
+        </div>
+
+        <div class="mt-4 pt-4 border-t">
+            <h3 class="text-lg font-semibold text-gray-700">Your Attendance Stats</h3>
+            <div class="flex gap-8 mt-2">
+                <div>
+                    <span class="text-sm text-gray-500">This Month</span>
+                    <p class="text-2xl font-bold text-blue-600" id="month-percent-stat">Loading...</p>
+                </div>
+                 <div>
+                    <span class="text-sm text-gray-500">This Year</span>
+                    <p class="text-2xl font-bold text-indigo-600" id="year-percent-stat">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow-md h-fit space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Details</h2>
+                <div id="member-details-display" class="space-y-4 pr-2" style="max-height: 250px; overflow-y: auto;">
+                    <p>Loading details...</p>
+                </div>
+            </div>
+
+            <div class="border p-4 rounded-lg bg-gray-50">
+                <h3 class="text-lg font-semibold">Request Leave</h3>
+                <p class="text-sm text-gray-600 mb-2">Send a leave application to your leader.</p>
+                <label class="block text-sm font-medium text-gray-700">Leave Date</label>
+                <input type="date" id="request-leave-date" class="mt-1 p-2 border border-gray-300 rounded-lg w-full">
+                <label class="block text-sm font-medium text-gray-700 mt-2">Note (optional)</label>
+                <textarea id="request-leave-note" class="w-full mt-1 p-2 border border-gray-300 rounded-lg" rows="3" placeholder="Explain your reason..."></textarea>
+                <div class="mt-3 flex gap-2">
+                    <button id="submit-leave-request-btn" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Send Request</button>
+                    <button id="clear-leave-request-btn" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">Clear</button>
+                </div>
+                <p id="request-leave-status" class="text-sm mt-2"></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold text-gray-800 mb-3">Leave Responses from Leader</h3>
+            <p class="text-sm text-gray-500 mb-4">Here you can see if your leave requests have been accepted or rejected.</p>
+            <button id="refresh-member-notifs" class="text-sm text-blue-500 hover:underline mb-3">Refresh Responses</button>
+            <div id="member-notifs-list" class="space-y-3 pr-2" style="max-height: 260px; overflow-y: auto;">
+                <div class="text-sm text-gray-500">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* member_dashboard.html script */
+
+/* DOM references */
+const memberData = {{ member | tojson }};
+const monthPercentEl = document.getElementById('month-percent-stat');
+const yearPercentEl = document.getElementById('year-percent-stat');
+const memberDetailsDisplay = document.getElementById('member-details-display');
+const leaveDateInput = document.getElementById('request-leave-date');
+const leaveNoteInput = document.getElementById('request-leave-note');
+const submitLeaveBtn = document.getElementById('submit-leave-request-btn');
+const clearLeaveBtn = document.getElementById('clear-leave-request-btn');
+const leaveStatusEl = document.getElementById('request-leave-status');
+const notifsContainer = document.getElementById('member-notifs-list');
+const refreshNotifsBtn = document.getElementById('refresh-member-notifs');
+
+/* --- DATA LOADING FUNCTIONS --- */
+
+async function loadInitialData() {
+    await Promise.all([
+        renderMemberDetails(),
+        loadMemberStats(),
+        loadMemberNotifications()
+    ]);
+}
+
+async function renderMemberDetails() {
+    memberDetailsDisplay.innerHTML = '<p>Loading...</p>';
+    try {
+        const teamFields = await fetch(`/api/get_team_fields/${encodeURIComponent(memberData.team_name)}`).then(r => r.json());
+        const fieldMap = new Map(teamFields.map(f => [f.key, f.label]));
+        memberDetailsDisplay.innerHTML = `
+            <div>
+                <p class="text-sm font-medium text-gray-500">Contact Number</p>
+                <p class="text-gray-800">${memberData.contact || '<span class="text-gray-400">Not set</span>'}</p>
+            </div>
+        `;
+        if (memberData.additional_data) {
+            for (const key in memberData.additional_data) {
+                const label = fieldMap.get(key);
+                if (label) {
+                    const value = memberData.additional_data[key];
+                    memberDetailsDisplay.innerHTML += `
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">${label}</p>
+                            <p class="text-gray-800 break-words">${value || '<span class="text-gray-400">Not set</span>'}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+    } catch (err) {
+        memberDetailsDisplay.innerHTML = '<p class="text-red-500 text-sm">Error loading details.</p>';
+    }
+}
+
+async function loadMemberStats() {
+    try {
+        monthPercentEl.textContent = '...';
+        yearPercentEl.textContent = '...';
+        const stats = await fetch(`/api/get_member_stats/${encodeURIComponent(memberData.team_name)}/${encodeURIComponent(memberData.enrollment_id)}`).then(r => r.json());
+        monthPercentEl.textContent = stats.month_percent || 'N/A';
+        yearPercentEl.textContent = stats.year_percent || 'N/A';
+    } catch (err) {
+        monthPercentEl.textContent = 'N/A';
+        yearPercentEl.textContent = 'N/A';
+    }
+}
+
+async function loadMemberNotifications() {
+    notifsContainer.innerHTML = '<div class="text-sm text-gray-500 p-2">Loading...</div>';
+    try {
+        const notifs = await fetch('/api/get_member_notifications').then(r => r.json());
+        if (!notifs || notifs.length === 0) {
+            notifsContainer.innerHTML = '<div class="text-sm text-gray-500 p-2">No responses from your leader yet.</div>';
+            return;
+        }
+        notifsContainer.innerHTML = '';
+        notifs.forEach(n => {
+            notifsContainer.innerHTML += `
+                <div class="p-3 border rounded-md bg-gray-50 flex items-start justify-between gap-3">
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold">${n.date} — <span class="${n.status === 'accepted' ? 'text-green-600' : 'text-red-600'}">${n.status.toUpperCase()}</span></div>
+                        <div class="text-xs text-gray-700 mt-1">Leader reply: ${n.reply_note || '<span class="text-gray-400">No reply note</span>'}</div>
+                    </div>
+                    <button data-id="${n.id}" class="del-notif-btn p-1 text-xs text-gray-400 hover:text-red-500" title="Delete notification">&#10006;</button>
+                </div>
+            `;
+        });
+        notifsContainer.querySelectorAll('.del-notif-btn').forEach(btn => btn.addEventListener('click', deleteNotification));
+    } catch (e) {
+        notifsContainer.innerHTML = '<div class="text-red-500 p-2">Failed to load notifications.</div>';
+    }
+}
+
+/* --- UI ACTIONS --- */
+
+submitLeaveBtn.addEventListener('click', async () => {
+    const date = leaveDateInput.value;
+    const note = leaveNoteInput.value.trim();
+    if (!date) {
+        leaveStatusEl.textContent = 'Please select a date.';
+        leaveStatusEl.className = 'text-sm mt-2 text-red-600';
+        return;
+    }
+    submitLeaveBtn.disabled = true;
+    submitLeaveBtn.textContent = 'Sending...';
+    try {
+        const res = await fetch('/api/member/request_leave', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ date, note })
+        });
+        const j = await res.json();
+        leaveStatusEl.className = `text-sm mt-2 ${j.status === 'success' ? 'text-green-600' : 'text-red-600'}`;
+        leaveStatusEl.textContent = j.message || 'An error occurred.';
+        if (j.status === 'success') {
+            leaveDateInput.value = '';
+            leaveNoteInput.value = '';
+        }
+    } catch (err) {
+        leaveStatusEl.textContent = 'Network error. Please try again.';
+        leaveStatusEl.className = 'text-sm mt-2 text-red-600';
+    } finally {
+        submitLeaveBtn.disabled = false;
+        submitLeaveBtn.textContent = 'Send Request';
+    }
+});
+
+clearLeaveBtn.addEventListener('click', () => {
+    leaveDateInput.value = '';
+    leaveNoteInput.value = '';
+    leaveStatusEl.textContent = '';
+});
+
+async function deleteNotification(event) {
+    const id = event.currentTarget.dataset.id;
+    if (!confirm('Hide this notification from your dashboard?')) return;
+    try {
+        await fetch('/api/delete_member_notification', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id })
+        });
+        loadMemberNotifications(); // Refresh the list
+    } catch (e) {
+        alert('Failed to hide notification.');
+    }
+}
+
+refreshNotifsBtn.addEventListener('click', loadMemberNotifications);
+
+/* --- INITIAL PAGE LOAD --- */
+document.addEventListener('DOMContentLoaded', loadInitialData);
+
+</script>
+{% endblock %}

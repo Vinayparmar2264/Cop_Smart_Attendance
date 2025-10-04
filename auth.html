@@ -1,0 +1,317 @@
+{% extends "layout.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
+
+        <!-- Tab Controls -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex -mb-px" aria-label="Tabs">
+                <button id="leader-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-blue-600 border-blue-500">
+                    Leader / Admin
+                </button>
+                <button id="member-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                    Team Member
+                </button>
+            </nav>
+        </div>
+
+        <!-- Flashed Messages (Visible for all tabs) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% set color = 'green' if category == 'success' else 'red' %}
+                    <div class="bg-{{ color }}-100 border border-{{ color }}-400 text-{{ color }}-700 px-4 py-3 rounded relative my-4" role="alert">
+                        <strong class="font-bold">{{ category|capitalize }}:</strong>
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Leader Section (Contains all existing forms) -->
+        <div id="leader-section">
+            <!-- This form switches based on the 'page' variable for login, signup, and forgot password -->
+            <form class="space-y-6" action="{{ url_for('auth', page=page|default('login')) }}" method="POST">
+
+                <h2 class="text-center text-2xl font-extrabold text-gray-900">
+                    {% if page == 'login' %}Leader Sign In
+                    {% elif page == 'signup' %}Create Leader Account
+                    {% else %}Reset Leader Password
+                    {% endif %}
+                </h2>
+
+                {% if error %}
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ error }}</span>
+                    </div>
+                {% endif %}
+
+                <!-- LOGIN FORM -->
+                {% if page == 'login' %}
+                    <div class="rounded-md shadow-sm -space-y-px">
+                        <div><input name="username" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md" placeholder="Username"></div>
+                        <div><input name="password" type="password" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md" placeholder="Password"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                        <a href="{{ url_for('auth', page='forgot_password') }}" class="font-medium text-blue-600 hover:text-blue-500">Forgot your password?</a>
+                    </div>
+                    <div><button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Sign in</button></div>
+                    <div class="text-sm text-center">
+                        <p>Don't have an account? <a href="{{ url_for('auth', page='signup') }}" class="font-medium text-blue-600 hover:text-blue-500">Sign Up</a></p>
+                    </div>
+
+                <!-- SIGN UP FORM -->
+                {% elif page == 'signup' %}
+                     <div class="rounded-md shadow-sm -space-y-px">
+                        <div><input name="username" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md" placeholder="Username (alphanumeric)"></div>
+                        <div><input name="password" type="password" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900" placeholder="Password (min 8 characters)"></div>
+                        <div><input name="confirm_password" type="password" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md" placeholder="Confirm Password"></div>
+                    </div>
+                    <div id="signup-face-capture" class="mt-4 p-4 border rounded-lg">
+                        <p class="text-center text-sm font-medium text-gray-700 mb-2">Face Capture (Required)</p>
+                        <video id="video-signup" class="w-full rounded-lg hidden" autoplay playsinline></video>
+                        <canvas id="canvas-signup" class="hidden"></canvas>
+                        <p id="signup-status" class="text-center text-sm my-2"></p>
+                        <div id="signup-controls" class="grid grid-cols-2 gap-4">
+                            <button type="button" id="start-camera-signup" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300">Start Camera</button>
+                            <button type="button" id="capture-face-signup" class="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400" disabled>Capture Face</button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="face-encoding-input" name="face_encoding">
+                    <div><button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Create Account</button></div>
+                    <div class="text-sm text-center">
+                        <p>Already have an account? <a href="{{ url_for('auth', page='login') }}" class="font-medium text-blue-600 hover:text-blue-500">Login</a></p>
+                    </div>
+
+                <!-- FORGOT PASSWORD FORM -->
+                {% elif page == 'forgot_password' %}
+                    {% if not username_validated %}
+                        <p class="text-center text-sm text-gray-600">Enter your username to find your account.</p>
+                        <div class="rounded-md shadow-sm">
+                            <input name="username" type="text" required class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500" placeholder="Username">
+                        </div>
+                        <div><button type="submit" name="check_username" value="1" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Find Account</button></div>
+                    {% else %}
+                        <div id="forgot-face-capture" class="p-4 border rounded-lg">
+                            <p class="text-center text-sm font-medium text-gray-700 mb-2">Verify your identity for <strong>{{ username_to_reset }}</strong></p>
+                            <video id="video-forgot" class="w-full rounded-lg hidden" autoplay playsinline></video>
+                            <canvas id="canvas-forgot" class="hidden"></canvas>
+                            <p id="forgot-status" class="text-center text-sm my-2"></p>
+                            <div id="forgot-controls" class="grid grid-cols-2 gap-4">
+                                <button type="button" id="start-camera-forgot" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300">Start Camera</button>
+                                <button type="button" id="verify-face-forgot" class="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400" disabled>Verify Face</button>
+                            </div>
+                        </div>
+                        <div id="password-reset-section" class="hidden">
+                            <input type="hidden" name="username" value="{{ username_to_reset }}">
+                            <div class="rounded-md shadow-sm -space-y-px">
+                                <div><input name="password" type="password" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 rounded-t-md" placeholder="New Password (min 8 characters)"></div>
+                                <div><input name="confirm_password" type="password" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 rounded-b-md" placeholder="Confirm New Password"></div>
+                            </div>
+                            <div><button type="submit" name="reset_password" value="1" class="group mt-4 relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Reset Password</button></div>
+                        </div>
+                    {% endif %}
+                    <div class="text-sm text-center">
+                        <a href="{{ url_for('auth', page='login') }}" class="font-medium text-blue-600 hover:text-blue-500">Back to Login</a>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Team Member Login Section -->
+        <div id="member-section" class="hidden">
+             <h2 class="mt-6 text-center text-2xl font-extrabold text-gray-900">Team Member Login</h2>
+             {% if member_error %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
+                    <span class="block sm:inline">{{ member_error }}</span>
+                </div>
+            {% endif %}
+             <form class="mt-8 space-y-6" action="{{ url_for('member_login') }}" method="POST">
+                <div class="rounded-md shadow-sm -space-y-px">
+                    <div><input name="leader_username" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md" placeholder="Leader's Username"></div>
+                    <div><input name="team_name" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900" placeholder="Your Team Name"></div>
+                    <div><input name="enrollment_id" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md" placeholder="Your Enrollment ID"></div>
+                </div>
+                <div><button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">Continue to Face Verification</button></div>
+             </form>
+        </div>
+
+        <!-- Member Face Verification Modal (initially hidden) -->
+        {% if show_member_face_verify %}
+        <div id="member-verify-modal" class="fixed z-10 inset-0 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen">
+                <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+                <div class="bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+                     <div class="bg-white p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 text-center">Member Face Verification</h3>
+                        <p class="text-center text-sm text-gray-600 mt-2">Please verify your identity to log in.</p>
+                        <video id="video-member" class="w-full rounded-lg hidden mt-4" autoplay playsinline></video>
+                        <canvas id="canvas-member" class="hidden"></canvas>
+                        <p id="member-verify-status" class="text-center text-sm my-2"></p>
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <button type="button" id="start-camera-member" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300">Start Camera</button>
+                            <button type="button" id="verify-face-member" class="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400" disabled>Verify Face & Login</button>
+                        </div>
+                        <div class="text-center mt-4">
+                             <a href="{{ url_for('auth', page='login') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">Cancel</a>
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const memberVerifyModal = document.getElementById('member-verify-modal');
+                if (memberVerifyModal) {
+                    memberVerifyModal.classList.remove('hidden');
+                }
+            });
+        </script>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- Tab Switching Logic ---
+    const leaderTab = document.getElementById('leader-tab');
+    const memberTab = document.getElementById('member-tab');
+    const leaderSection = document.getElementById('leader-section');
+    const memberSection = document.getElementById('member-section');
+
+    leaderTab.addEventListener('click', () => {
+        leaderSection.classList.remove('hidden');
+        memberSection.classList.add('hidden');
+        leaderTab.classList.add('text-blue-600', 'border-blue-500');
+        memberTab.classList.remove('text-blue-600', 'border-blue-500');
+    });
+
+    memberTab.addEventListener('click', () => {
+        memberSection.classList.remove('hidden');
+        leaderSection.classList.add('hidden');
+        memberTab.classList.add('text-blue-600', 'border-blue-500');
+        leaderTab.classList.remove('text-blue-600', 'border-blue-500');
+    });
+
+    // --- Face Capture and Verification Logic ---
+    function setupFaceCapture(videoEl, canvasEl, startBtn, captureBtn, statusEl, apiEndpoint, isVerification, getPayload) {
+        let stream;
+        startBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                videoEl.srcObject = stream;
+                videoEl.classList.remove('hidden');
+                captureBtn.disabled = false;
+                statusEl.textContent = 'Camera started. Look at the camera and click the button.';
+                statusEl.className = 'text-center text-sm my-2 text-blue-600';
+            } catch (err) {
+                statusEl.textContent = 'Could not access camera. Please check permissions.';
+                statusEl.className = 'text-center text-sm my-2 text-red-600';
+            }
+        });
+
+        captureBtn.addEventListener('click', async () => {
+            if (!stream) return;
+            statusEl.textContent = isVerification ? 'Verifying...' : 'Capturing...';
+            captureBtn.disabled = true;
+
+            const context = canvasEl.getContext('2d');
+            canvasEl.width = videoEl.videoWidth;
+            canvasEl.height = videoEl.videoHeight;
+            context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+            const imageData = canvasEl.toDataURL('image/jpeg');
+
+            stream.getTracks().forEach(track => track.stop());
+            videoEl.classList.add('hidden');
+
+            try {
+                const payload = await getPayload(imageData);
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    statusEl.textContent = result.message || 'Success!';
+                    statusEl.className = 'text-center text-sm my-2 text-green-600';
+                    if (isVerification) {
+                        if (apiEndpoint.includes('verify_member_face')) {
+                             window.location.href = "{{ url_for('member_dashboard') }}";
+                        } else {
+                            document.getElementById('forgot-face-capture').classList.add('hidden');
+                            document.getElementById('password-reset-section').classList.remove('hidden');
+                        }
+                    } else {
+                        document.getElementById('face-encoding-input').value = JSON.stringify(result.encoding);
+                    }
+                } else {
+                    statusEl.textContent = `Error: ${result.message}`;
+                    statusEl.className = 'text-center text-sm my-2 text-red-600';
+                    captureBtn.disabled = false;
+                }
+            } catch (err) {
+                statusEl.textContent = 'An API error occurred.';
+                statusEl.className = 'text-center text-sm my-2 text-red-600';
+                captureBtn.disabled = false;
+            }
+        });
+    }
+
+    // Initialize for Sign Up Page
+    if (document.getElementById('video-signup')) {
+        setupFaceCapture(
+            document.getElementById('video-signup'),
+            document.getElementById('canvas-signup'),
+            document.getElementById('start-camera-signup'),
+            document.getElementById('capture-face-signup'),
+            document.getElementById('signup-status'),
+            '/api/capture_and_encode',
+            false,
+            async (imageData) => ({ image: imageData })
+        );
+    }
+
+    // Initialize for Leader Forgot Password
+     if (document.getElementById('video-forgot')) {
+        setupFaceCapture(
+            document.getElementById('video-forgot'),
+            document.getElementById('canvas-forgot'),
+            document.getElementById('start-camera-forgot'),
+            document.getElementById('verify-face-forgot'),
+            document.getElementById('forgot-status'),
+            '/api/verify_face',
+            true,
+            async (imageData) => {
+                const usernameInput = document.querySelector('input[type=hidden][name="username"]');
+                return { image: imageData, username: usernameInput.value };
+            }
+        );
+    }
+
+    // Initialize for Member Verification Modal
+    if (document.getElementById('video-member')) {
+        setupFaceCapture(
+            document.getElementById('video-member'),
+            document.getElementById('canvas-member'),
+            document.getElementById('start-camera-member'),
+            document.getElementById('verify-face-member'),
+            document.getElementById('member-verify-status'),
+            '/api/verify_member_face',
+            true,
+            async (imageData) => ({
+                image: imageData,
+                leader_username: "{{ leader_username }}",
+                team_name: "{{ team_name }}",
+                enrollment_id: "{{ enrollment_id }}"
+            })
+        );
+    }
+</script>
+{% endblock %}
+
